@@ -44,7 +44,9 @@ To install mParticle on an Android platform:
 
 ```groovy
 dependencies {
-    implementation 'com.mparticle:android-core:5+'
+    implementation 'com.mparticle:android-core:5.79.0'
+    // Required only if you use Rokt APIs from Flutter
+    implementation 'com.mparticle:android-rokt-kit:5.79.0'
 
     // Required for gathering Android Advertising ID (see below)
     implementation 'com.google.android.gms:play-services-ads-identifier:16.0.0'
@@ -63,6 +65,7 @@ package com.example.myapp;
 
 import android.app.Application;
 import com.mparticle.MParticle;
+import com.mparticle.MParticleOptions;
 
 public class MyApplication extends Application {
     @Override
@@ -100,6 +103,26 @@ class ExampleApplication : Application() {
 }
 ```
 
+Optional: if your team uses a custom CNAME endpoint, configure `NetworkOptions` separately:
+
+```java
+import com.mparticle.networking.NetworkOptions;
+
+MParticleOptions options = MParticleOptions.builder(this)
+    .credentials("REPLACE ME WITH KEY","REPLACE ME WITH SECRET")
+    .networkOptions(NetworkOptions.withNetworkOptions("https://rkt.example.com"))
+    .build();
+```
+
+```kotlin
+import com.mparticle.networking.NetworkOptions
+
+val options = MParticleOptions.builder(this)
+    .credentials("REPLACE ME WITH KEY", "REPLACE ME WITH SECRET")
+    .networkOptions(NetworkOptions.withNetworkOptions("https://rkt.example.com"))
+    .build()
+```
+
 > **Warning:** Don't log events in your `Application.onCreate()`. Android may instantiate your `Application` class for a lot of reasons, in the background, while the user isn't even using their device. 
 For more help, see [the Android set up docs](https://docs.mparticle.com/developers/sdk/android/getting-started/#create-an-input).
 
@@ -117,7 +140,7 @@ To install mParticle on an iOS platform:
 2. Install the SDK using CocoaPods:
 
 ```bash
-$ # Update your Podfile to depend on 'mParticle-Apple-SDK' version 9.1.0 or later
+$ # Update your Podfile to depend on 'mParticle-Apple-SDK' version 9.2.0 or later
 $ pod install
 ```
 
@@ -198,6 +221,20 @@ Next, you'll need to start the SDK:
     
     return YES;
 }
+```
+
+Optional: if your team uses a custom CNAME endpoint, configure `MPNetworkOptions` separately:
+
+```swift
+let networkOptions = MPNetworkOptions()
+networkOptions.customBaseURL = URL(string: "https://rkt.example.com")
+mParticleOptions.networkOptions = networkOptions
+```
+
+```objective-c
+MPNetworkOptions *networkOptions = [MPNetworkOptions new];
+networkOptions.customBaseURL = [NSURL URLWithString:@"https://rkt.example.com"];
+mParticleOptions.networkOptions = networkOptions;
 ```
 
 See [Identity](https://docs.mparticle.com/developers/sdk/ios/idsync/) for more information on supplying an `MPIdentityApiRequest` object during SDK initialization.
