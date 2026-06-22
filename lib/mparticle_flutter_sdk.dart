@@ -17,6 +17,7 @@ import 'package:mparticle_flutter_sdk/apple/authorization_status.dart';
 import 'package:mparticle_flutter_sdk/kits/widget_controller.dart';
 import 'package:mparticle_flutter_sdk/src/commerce/commerce_helpers.dart';
 import 'package:mparticle_flutter_sdk/src/identity/identity_helpers.dart';
+import 'package:mparticle_flutter_sdk/src/mparticle_init.dart';
 import 'package:mparticle_flutter_sdk/src/user.dart';
 
 import 'events/mp_event.dart';
@@ -24,22 +25,171 @@ import 'events/screen_event.dart';
 import 'identity/alias_request.dart';
 import 'identity/identity_api_result.dart';
 
+export 'package:mparticle_flutter_sdk/src/mparticle_init.dart';
+
 part './kits/rokt_layout.dart';
 
 /// The interface that implements the mParticle Dart SDK.
 class MparticleFlutterSdk {
   static MparticleFlutterSdk? _instance;
+  static String? _initializedApiKey;
+  static Completer<MparticleFlutterSdk>? _initCompleter;
+  static bool _initialized = false;
 
-  /// Returns an active instance of MparticleFlutterSDK if the underlying platform SDK has been initialized.
+  MparticleFlutterSdk._();
+
+  /// Test-only factory that bypasses native initialization.
+  @visibleForTesting
+  factory MparticleFlutterSdk.testInstance() {
+    _instance = MparticleFlutterSdk._();
+    _initialized = true;
+    _initializedApiKey = 'test-key';
+    return _instance!;
+  }
+
+  /// Resets initialization state for tests.
+  @visibleForTesting
+  static void resetForTest() {
+    _instance = null;
+    _initializedApiKey = null;
+    _initCompleter = null;
+    _initialized = false;
+    _placeholders.clear();
+  }
+
+  /// Initializes mParticle on Android and iOS from Dart.
   ///
-  /// The most common reason that this method returns null is if an API Key and
-  /// secret have not been provided properly to the underlying platform SDK.
+  /// On web, throws [MparticleInitException] with code
+  /// [MparticleInitErrorCodes.unsupportedPlatform]. Use the JS snippet and
+  /// [waitUntilReady] on web instead.
+  ///
+  /// Catch initialization failures with `on MparticleInitException` and inspect
+  /// [MparticleInitException.code].
+  static Future<MparticleFlutterSdk> initialize(
+    MparticleOptions options,
+  ) async {
+    if (kIsWeb) {
+      throw MparticleInitException(
+        code: MparticleInitErrorCodes.unsupportedPlatform,
+        message: 'initialize() is not supported on web. Use waitUntilReady().',
+      );
+    }
+
+    options.validate();
+
+    if (_initialized && _instance != null) {
+      if (_initializedApiKey == options.apiKey) {
+        return _instance!;
+      }
+      throw MparticleAlreadyInitializedException();
+    }
+
+    if (_initCompleter != null) {
+      if (_initializedApiKey != null && _initializedApiKey != options.apiKey) {
+        throw MparticleAlreadyInitializedException();
+      }
+      return _initCompleter!.future;
+    }
+
+    _initCompleter = Completer<MparticleFlutterSdk>();
+    _initializedApiKey = options.apiKey;
+
+    try {
+      await _channel.invokeMethod<void>('initialize', options.toJson()).timeout(
+        options.initTimeout,
+        onTimeout: () {
+          throw MparticleInitException(
+            code: MparticleInitErrorCodes.timeout,
+            message: 'mParticle initialization timed out.',
+          );
+        },
+      );
+      final sdk = MparticleFlutterSdk._();
+      _instance = sdk;
+      _initialized = true;
+      _placeholders.clear();
+      if (!_initCompleter!.isCompleted) {
+        _initCompleter!.complete(sdk);
+      }
+      return sdk;
+    } on MparticleInitException catch (e) {
+      if (!_initCompleter!.isCompleted) {
+        _initCompleter!.completeError(e);
+      }
+      _initCompleter = null;
+      _initializedApiKey = null;
+      rethrow;
+    } on PlatformException catch (e) {
+      if (!_initCompleter!.isCompleted) {
+        _initCompleter!.completeError(e);
+      }
+      _initCompleter = null;
+      _initializedApiKey = null;
+      throwInitExceptionFromPlatform(e);
+    } catch (e, stack) {
+      if (!_initCompleter!.isCompleted) {
+        _initCompleter!.completeError(e, stack);
+      }
+      _initCompleter = null;
+      _initializedApiKey = null;
+      rethrow;
+    } finally {
+      if (_initCompleter != null && _initCompleter!.isCompleted) {
+        _initCompleter = null;
+      }
+    }
+  }
+
+  /// Waits until the web SDK reports initialized via the JS snippet.
+  ///
+  /// On mobile, returns [instance] if [initialize] completed; otherwise throws
+  /// [StateError].
+  static Future<MparticleFlutterSdk> waitUntilReady({
+    Duration timeout = const Duration(seconds: 5),
+  }) async {
+    if (!kIsWeb) {
+      if (_initialized && _instance != null) {
+        return _instance!;
+      }
+      throw StateError(
+        'MparticleFlutterSdk.initialize() must complete before calling waitUntilReady.',
+      );
+    }
+
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      final ready = await _channel.invokeMethod<bool>('isInitialized');
+      if (ready == true) {
+        _instance ??= MparticleFlutterSdk._();
+        _initialized = true;
+        return _instance!;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+    }
+    throw MparticleInitException(
+      code: MparticleInitErrorCodes.timeout,
+      message: 'Timed out waiting for web mParticle SDK to initialize.',
+    );
+  }
+
+  /// Returns the initialized SDK instance on mobile after [initialize].
+  static MparticleFlutterSdk get instance {
+    if (!_initialized || _instance == null) {
+      throw StateError(
+        'MparticleFlutterSdk.initialize() must complete before accessing instance.',
+      );
+    }
+    return _instance!;
+  }
+
+  /// Deprecated: use [initialize] on mobile or [waitUntilReady] on web.
+  @Deprecated('Use MparticleFlutterSdk.initialize() instead.')
   static Future<MparticleFlutterSdk?> getInstance() async {
     try {
       if (_instance == null) {
         if (await _channel.invokeMethod('isInitialized') == true) {
-          _instance = new MparticleFlutterSdk();
-          _instance!._setSdkVersion();
+          _instance = MparticleFlutterSdk._();
+          _initialized = true;
         }
       }
       return _instance;
@@ -82,7 +232,7 @@ class MparticleFlutterSdk {
     return await _channel.invokeMethod('isKitActive', {'kitId': kit});
   }
 
-    /// Placeholders are attached to be passed to Rokt Execute
+  /// Placeholders are attached to be passed to Rokt Execute
   void attachPlaceholder({required int id, required String name}) {
     // Prevent duplicate placeholders with same name
     _placeholders.removeWhere((key, value) => value == name);
@@ -220,10 +370,6 @@ class MparticleFlutterSdk {
     Map attributionsMap = jsonDecode(attributionsString);
     return attributionsMap;
   }
-
-  Future<void> _setSdkVersion() async {
-    return await _channel.invokeMethod('setSdkVersion');
-  }
 }
 
 /// An object that contains identities that are passed to [identity] calls
@@ -259,7 +405,9 @@ class Identity {
     IdentityRequest? identityRequest,
   }) async {
     return await sendIdentityRequest(
-        (identityRequest ?? IdentityRequest()).identities, _channel, 'identify');
+        (identityRequest ?? IdentityRequest()).identities,
+        _channel,
+        'identify');
   }
 
   Future<IdentityApiResult> login({
@@ -306,11 +454,20 @@ class Rokt {
   static const MethodChannel _channel =
       const MethodChannel('mparticle_flutter_sdk');
   static const EventChannel _eventChannel = EventChannel('MPRoktEvents');
+  static final Map<String, StreamSubscription<dynamic>> _eventSubscriptions =
+      {};
 
   /// Subscribes to Rokt events for a specific [identifier].
   void events(String identifier, void Function(dynamic event) onEvent) {
+    _eventSubscriptions[identifier]?.cancel();
     _channel.invokeMethod('roktSubscribeToEvents', {'identifier': identifier});
-    _eventChannel.receiveBroadcastStream().listen(onEvent);
+    _eventSubscriptions[identifier] =
+        _eventChannel.receiveBroadcastStream().listen(onEvent);
+  }
+
+  /// Cancels the Rokt event subscription for [identifier].
+  void cancelEvents(String identifier) {
+    _eventSubscriptions.remove(identifier)?.cancel();
   }
 
   /// Selects placements with a [identifier], optional [attributes], optional [roktConfig], and optional [fontFilePathMap].
@@ -385,9 +542,10 @@ class Rokt {
       'colorMode': config.colorMode.name,
       'cacheConfig': config.cacheConfig != null
           ? {
-        'cacheDurationInSeconds': config.cacheConfig?.cacheDurationInSeconds,
-        'cacheAttributes': config.cacheConfig?.cacheAttributes
-      }
+              'cacheDurationInSeconds':
+                  config.cacheConfig?.cacheDurationInSeconds,
+              'cacheAttributes': config.cacheConfig?.cacheAttributes
+            }
           : null
     };
   }
@@ -402,6 +560,7 @@ class Rokt {
 class CacheConfig {
   /// Duration in seconds for which the Rokt SDK should cache the experience
   final int cacheDurationInSeconds;
+
   /// Optional attributes to be used as cache key
   final Map<String, String>? cacheAttributes;
 
@@ -423,6 +582,7 @@ class CacheConfig {
 class RoktConfig {
   /// The device color mode your application is using
   final ColorMode colorMode;
+
   /// The cache configuration for the Rokt SDK
   final CacheConfig? cacheConfig;
 
@@ -431,7 +591,8 @@ class RoktConfig {
   /// - Parameters
   ///   - [ColorMode]? colorMode: preferred device color mode configuration
   ///   - [CacheConfig]? cacheConfig: cache configuration for the Rokt SDK
-  const RoktConfig({this.colorMode = ColorMode.system, this.cacheConfig = null});
+  const RoktConfig(
+      {this.colorMode = ColorMode.system, this.cacheConfig = null});
 }
 
 /// Enum representing device color modes

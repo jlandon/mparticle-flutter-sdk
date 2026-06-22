@@ -1,13 +1,13 @@
 name: mparticle_flutter_sdk
 description: mParticle Flutter Plugin - SDK wrapper for iOS, Android, and Web platforms
-version: 2.1.0
+version: 3.0.0-beta.1
 homepage: https://github.com/mParticle/mparticle-flutter-sdk
 repository: https://github.com/mParticle/mparticle-flutter-sdk
 license: Apache-2.0
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
-  flutter: ">=3.10.0"
+  flutter: ">=3.44.0"
 
 dependencies:
   flutter:

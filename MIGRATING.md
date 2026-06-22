@@ -6,6 +6,64 @@ This document describes upgrade steps for breaking changes in the mParticle Flut
 
 For changes in the underlying native iOS SDK (database migration, deprecated `UIApplicationDelegate` methods, removed `AppDelegateProxy`, regional routing / ATS, Rokt event class renames at the Swift/Objective-C level, etc.), refer to the [mParticle Apple SDK 9 migration guide](https://github.com/mParticle/mparticle-apple-sdk/blob/main/MIGRATING.md#migrating-from-versions--900).
 
+## Migrating from versions < 3.0.0
+
+Version 3.0.0 introduces Dart-only mobile initialization and Swift Package Manager support.
+
+### Remove native mobile initialization
+
+1. Delete custom `Application` class / `MParticle.start()` from Android.
+2. Delete `MParticle.start(with:)` from iOS `AppDelegate`.
+3. Remove duplicate mParticle Gradle and Podfile dependencies from your app.
+
+### Add Dart initialization
+
+```dart
+WidgetsFlutterBinding.ensureInitialized();
+await MparticleFlutterSdk.initialize(
+  MparticleOptions(
+    apiKey: const String.fromEnvironment('MP_API_KEY'),
+    apiSecret: const String.fromEnvironment('MP_API_SECRET'),
+  ),
+);
+```
+
+Web apps: keep the JS snippet in `index.html` and call `await MparticleFlutterSdk.waitUntilReady()`.
+
+### Replace `getInstance()`
+
+| Before                                    | After                                                |
+| ----------------------------------------- | ---------------------------------------------------- |
+| `await MparticleFlutterSdk.getInstance()` | `await MparticleFlutterSdk.initialize(options)`      |
+| nullable `mpInstance?.logEvent()`         | `MparticleFlutterSdk.instance.logEvent()` after init |
+
+### iOS `isInitialized` behavior
+
+Pre-init calls now return `false` on iOS (2.x always returned `true`).
+
+### Flutter version requirement
+
+Requires **Flutter ≥ 3.44.0** when using Swift Package Manager (default in Flutter 3.44+). CocoaPods-only apps on older Flutter can disable SPM with `flutter config --no-enable-swift-package-manager`.
+
+### Android Rokt events
+
+Extend `FlutterFragmentActivity` for `MainActivity` when using Rokt event subscriptions.
+
+### iOS dependency pins
+
+| Dependency           | CocoaPods         | SPM floor |
+| -------------------- | ----------------- | --------- |
+| mParticle-Apple-SDK  | `~> 9.2`          | `9.2.0`   |
+| mParticle-Rokt       | bundled in plugin | `9.0.0`   |
+| RoktPaymentExtension | bundled in plugin | `2.0.0`   |
+
+### Beta publish runbook
+
+1. Set `pubspec.yaml` version to `3.0.0-beta.1`.
+2. Run full CI verification.
+3. `flutter pub publish` and tag `v3.0.0-beta.1`.
+4. After community validation, cut GA `3.0.0` via release workflow.
+
 ## Migrating from versions < 2.0.0
 
 Version 2.0.0 wraps the mParticle Apple SDK 9 on iOS. No Dart source changes are required for existing `selectPlacements`, `purchaseFinalized`, or `MPRoktEvents` integrations, but the iOS build configuration must be updated.

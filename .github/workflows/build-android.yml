@@ -35,7 +35,7 @@ jobs:
         run: flutter test
       - name: Build example APK
         working-directory: example
-        run: flutter build apk
+        run: flutter build apk --dart-define=MP_API_KEY=example-key --dart-define=MP_API_SECRET=example-secret
       - name: Check if example APK exists
         working-directory: example
         run: |
@@ -46,7 +46,7 @@ jobs:
           fi
       - name: Build example App Bundle
         working-directory: example
-        run: flutter build appbundle
+        run: flutter build appbundle --dart-define=MP_API_KEY=example-key --dart-define=MP_API_SECRET=example-secret
       - name: Check if example App Bundle exists
         working-directory: example
         run: |

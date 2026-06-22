@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0-beta.1] - 2026-06-18
+
+### Added
+
+- Dart-driven `MparticleFlutterSdk.initialize()` with `MparticleOptions` for Android and iOS.
+- `MparticleFlutterSdk.waitUntilReady()` web entry path after JS snippet init.
+- `MparticleFlutterSdk.instance` post-init accessor.
+- Swift Package Manager support (`ios/mparticle_flutter_sdk/Package.swift`) alongside CocoaPods.
+- Bundled Rokt native dependencies in the plugin (Android BOM + iOS podspec/SPM).
+
+### Changed
+
+- **BREAKING**: Remove native Application/AppDelegate/Gradle/Podfile setup requirement for mobile.
+- **BREAKING**: `getInstance()` removed from recommended path; use `initialize()` / `waitUntilReady()`.
+- **BREAKING**: iOS `isInitialized` now reflects actual SDK startup (was always `true` in 2.x).
+- **BREAKING**: Minimum Flutter version raised to `3.44.0`.
+- iOS plugin sources moved to `ios/mparticle_flutter_sdk/Sources/`.
+
+See [MIGRATING.md](./MIGRATING.md) for the 2.x → 3.0 upgrade guide.
+
 ## [2.1.0] - 2026-05-19
 
 ### Added

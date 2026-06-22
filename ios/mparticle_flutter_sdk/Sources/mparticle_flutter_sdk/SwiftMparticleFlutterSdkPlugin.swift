@@ -2,10 +2,14 @@ import Flutter
 import UIKit
 import mParticle_Apple_SDK
 import RoktContracts
+import RoktPaymentExtension
 
 public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
 
   fileprivate static let VIEW_CALL_DELEGATE = "rokt_sdk.rokt.com/rokt_layout"
+  private static let initLock = NSLock()
+  private static var initializedApiKey: String?
+  private static var sdkStarted = false
   let roktLayoutFactory: RoktLayoutFactory
   let channel: FlutterMethodChannel
   let registrar: FlutterPluginRegistrar
@@ -26,8 +30,10 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
+    case "initialize":
+        handleInitialize(call: call, result: result)
     case "isInitialized":
-        result(true)
+        result(SwiftMparticleFlutterSdkPlugin.sdkStarted)
     case "getAppName":
         result(Bundle.main.infoDictionary?[kCFBundleNameKey as String] as? String)
     case "getOptOut":
@@ -591,6 +597,93 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
     default:
         print("mParticle flutter SDK for iOS does not support \(call.method)")
     }
+  }
+
+  private func handleInitialize(call: FlutterMethodCall, result: @escaping FlutterResult) {
+    guard let args = call.arguments as? [String: Any],
+          let apiKey = (args["apiKey"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+          let apiSecret = (args["apiSecret"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+          !apiKey.isEmpty, !apiSecret.isEmpty else {
+      result(FlutterError(code: "MP_INIT_INVALID_CREDENTIALS", message: "Missing apiKey or apiSecret", details: nil))
+      return
+    }
+
+    if let customBaseUrl = args["customBaseUrl"] as? String {
+      let trimmed = customBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+      if !trimmed.lowercased().hasPrefix("https://") {
+        result(FlutterError(code: "MP_INIT_INVALID_BASE_URL", message: "customBaseUrl must use https://", details: nil))
+        return
+      }
+    }
+
+    SwiftMparticleFlutterSdkPlugin.initLock.lock()
+    defer { SwiftMparticleFlutterSdkPlugin.initLock.unlock() }
+
+    if SwiftMparticleFlutterSdkPlugin.sdkStarted {
+      if SwiftMparticleFlutterSdkPlugin.initializedApiKey == apiKey {
+        result(nil)
+        return
+      }
+      result(FlutterError(code: "MP_INIT_ALREADY_STARTED", message: "mParticle already initialized", details: nil))
+      return
+    }
+
+    let options = MParticleOptions(key: apiKey, secret: apiSecret)
+
+    if let logLevelIndex = args["logLevel"] as? Int,
+       let logLevel = MPILogLevel(rawValue: UInt(logLevelIndex)) {
+      options.logLevel = logLevel
+    }
+
+    if let envIndex = args["environment"] as? Int {
+      switch envIndex {
+      case 1:
+        options.environment = .development
+      case 2:
+        options.environment = .production
+      default:
+        options.environment = .autoDetect
+      }
+    }
+
+    if let customBaseUrl = args["customBaseUrl"] as? String {
+      let trimmed = customBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
+      if let url = URL(string: trimmed) {
+        let networkOptions = MPNetworkOptions()
+        networkOptions.customBaseURL = url
+        options.networkOptions = networkOptions
+      }
+    }
+
+    if let bootstrap = args["bootstrapIdentityRequest"] as? [String: Any],
+       let identities = bootstrap["identities"] as? [String: String] {
+      var identityMap: [NSNumber: String] = [:]
+      for (key, value) in identities {
+        if let intKey = Int(key) {
+          identityMap[NSNumber(value: intKey)] = value
+        }
+      }
+      options.identifyRequest = createIdentityRequest(identitiesKeyedOnType: identityMap)
+    }
+
+    MParticle.sharedInstance().start(with: options)
+    MParticle._setWrapperSdk_internal(MPWrapperSdk.flutter, version: "")
+
+    if let iosOptions = args["ios"] as? [String: Any],
+       let payment = iosOptions["roktPaymentExtension"] as? [String: Any],
+       let merchantId = payment["applePayMerchantId"] as? String {
+      let urlScheme = payment["urlScheme"] as? String
+      if let paymentExtension = RoktPaymentExtension(
+        applePayMerchantId: merchantId,
+        urlScheme: urlScheme
+      ) {
+        MParticle.sharedInstance().rokt.registerPaymentExtension(paymentExtension)
+      }
+    }
+
+    SwiftMparticleFlutterSdkPlugin.initializedApiKey = apiKey
+    SwiftMparticleFlutterSdkPlugin.sdkStarted = true
+    result(nil)
   }
 
   private func registerPartnerFonts(_ typefaces: Dictionary<String, String>) {

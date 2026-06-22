@@ -19,6 +19,7 @@ import com.mparticle.identity.IdentityApiResult
 import com.mparticle.identity.IdentityHttpResponse
 import com.mparticle.identity.MParticleUser
 import com.mparticle.MParticle
+import com.mparticle.MParticleOptions
 import com.mparticle.MPEvent
 import com.mparticle.UserAttributeListener
 import com.mparticle.WrapperSdk
@@ -27,6 +28,7 @@ import com.mparticle.consent.CCPAConsent
 import com.mparticle.consent.ConsentState
 import com.mparticle.consent.GDPRConsent
 import com.mparticle.internal.Logger
+import com.mparticle.networking.NetworkOptions
 import com.mparticle.rokt.CacheConfig
 import com.mparticle.rokt.RoktConfig
 import com.mparticle.rokt.RoktEmbeddedView
@@ -36,6 +38,7 @@ import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
 import org.json.JSONObject
 import kotlin.IllegalArgumentException
 import java.lang.ref.WeakReference
+import java.util.concurrent.atomic.AtomicReference
 
 
 /** MparticleFlutterSdkPlugin */
@@ -51,6 +54,8 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
   private var applicationContext: Context? = null
   private var activity: Activity? = null
   private var roktEventHandler: RoktEventHandler? = null
+  private val initLock = Any()
+  private val initializedApiKey = AtomicReference<String?>(null)
 
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, "mparticle_flutter_sdk")
@@ -69,6 +74,7 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
 
   override fun onMethodCall(@NonNull call: MethodCall, @NonNull result: Result) {
     when (call.method) {
+      "initialize" -> this.initialize(call, result)
       "isInitialized" -> result.success(MParticle.getInstance() != null)
       "getAppName" -> result.success("Android ${android.os.Build.VERSION.RELEASE}")
       "logEvent" -> this.logEvent(call, result)
@@ -236,7 +242,6 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
         result.success(true)
       }
       "roktSubscribeToEvents" -> this.roktSubscribeToEvents(call, result)
-      "roktSelectPlacements" -> this.roktSelectPlacements(call, result)
       "roktSelectShoppableAds" -> this.roktSelectShoppableAds(call, result)
       "roktPurchaseFinalized" -> this.roktPurchaseFinalized(call, result)
       else -> {
@@ -521,6 +526,96 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
     return map
   }
 
+  private fun initialize(call: MethodCall, result: Result) {
+    val apiKey = call.argument<String>("apiKey")?.trim()
+    val apiSecret = call.argument<String>("apiSecret")?.trim()
+    if (apiKey.isNullOrEmpty() || apiSecret.isNullOrEmpty()) {
+      result.error("MP_INIT_INVALID_CREDENTIALS", "Missing apiKey or apiSecret", null)
+      return
+    }
+
+    val customBaseUrl = call.argument<String>("customBaseUrl")?.trim()
+    if (customBaseUrl != null && !customBaseUrl.startsWith("https://", ignoreCase = true)) {
+      result.error("MP_INIT_INVALID_BASE_URL", "customBaseUrl must use https://", null)
+      return
+    }
+
+    synchronized(initLock) {
+      val existingKey = initializedApiKey.get()
+      if (MParticle.getInstance() != null) {
+        if (existingKey == apiKey) {
+          result.success(null)
+          return
+        }
+        result.error("MP_INIT_ALREADY_STARTED", "mParticle already initialized", null)
+        return
+      }
+
+      val context = applicationContext
+      if (context == null) {
+        result.error("MP_INIT_INVALID_OPTIONS", "Application context unavailable", null)
+        return
+      }
+
+      try {
+        val builder = MParticleOptions.builder(context)
+          .credentials(apiKey, apiSecret)
+
+        call.argument<Int>("logLevel")?.let { logLevelIndex ->
+          builder.logLevel(parseLogLevel(logLevelIndex))
+        }
+
+        call.argument<Int>("environment")?.let { envIndex ->
+          builder.environment(parseEnvironment(envIndex))
+        }
+
+        customBaseUrl?.let {
+          builder.networkOptions(NetworkOptions.withNetworkOptions(it))
+        }
+
+        val bootstrap = call.argument<Map<String, Any>>("bootstrapIdentityRequest")
+        bootstrap?.get("identities")?.let { identities ->
+          @Suppress("UNCHECKED_CAST")
+          val identityMap = identities as? Map<String, String>
+          if (identityMap != null) {
+            val intMap = hashMapOf<Int, String>()
+            identityMap.forEach { (key, value) ->
+              key.toIntOrNull()?.let { intMap[it] = value }
+            }
+            builder.identify(ConvertIdentityAPIRequest(intMap))
+          }
+        }
+
+        MParticle.start(builder.build())
+        setSdkVersion()
+        initializedApiKey.set(apiKey)
+        result.success(null)
+      } catch (e: Exception) {
+        result.error("MP_INIT_INVALID_OPTIONS", "Failed to initialize mParticle", null)
+      }
+    }
+  }
+
+  private fun parseLogLevel(index: Int): MParticle.LogLevel {
+    return when (index) {
+      0 -> MParticle.LogLevel.NONE
+      1 -> MParticle.LogLevel.ERROR
+      2 -> MParticle.LogLevel.WARNING
+      3 -> MParticle.LogLevel.INFO
+      4 -> MParticle.LogLevel.DEBUG
+      5 -> MParticle.LogLevel.VERBOSE
+      else -> MParticle.LogLevel.WARNING
+    }
+  }
+
+  private fun parseEnvironment(index: Int): MParticle.Environment {
+    return when (index) {
+      1 -> MParticle.Environment.Development
+      2 -> MParticle.Environment.Production
+      else -> MParticle.Environment.AutoDetect
+    }
+  }
+
   private fun identify(call: MethodCall, result: Result) {
     try {
       val identitiesByString: HashMap<Int, String>? = call.argument("identityRequest")
@@ -774,13 +869,16 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
 
     MParticle.getInstance()?.let { instance ->
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-        activity?.let { currentActivity ->
-          roktEventHandler?.subscribeToEvents(
-            events = instance.Rokt().events(identifier),
-            activity = currentActivity,
-            identifier = identifier,
-          )
+        val currentActivity = activity
+        if (currentActivity == null) {
+          result.error("MP_ROKT_ACTIVITY_UNAVAILABLE", "Activity unavailable for Rokt events", null)
+          return
         }
+        roktEventHandler?.subscribeToEvents(
+          events = instance.Rokt().events(identifier),
+          activity = currentActivity,
+          identifier = identifier,
+        )
       }
       result.success(true)
     } ?: result.error(TAG, "No mParticle instance exists", null)

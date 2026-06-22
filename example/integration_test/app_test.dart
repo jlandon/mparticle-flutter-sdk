@@ -11,9 +11,7 @@ void main() {
       (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(MyApp());
-    // The app has a 5 second delay for initialization.
-    await tester.pump(const Duration(seconds: 5));
-    await tester.pumpAndSettle();
+    await tester.pumpAndSettle(const Duration(seconds: 6));
 
     // Find the 'Rokt Layouts' button, scrolling if necessary.
     final roktButton = find.text('Rokt Layouts');

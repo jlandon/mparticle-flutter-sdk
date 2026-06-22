@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mparticle_flutter_sdk/mparticle_flutter_sdk.dart';
 import 'package:mparticle_flutter_sdk/events/event_type.dart';
@@ -22,7 +23,8 @@ import 'package:mparticle_flutter_sdk/apple/authorization_status.dart';
 import 'package:mparticle_flutter_sdk/consent/consent.dart';
 import 'rokt_layouts_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(MyApp());
 }
 
@@ -64,14 +66,32 @@ class _MyAppState extends State<MyApp> {
 
   // Platform messages are asynchronous, so we initialize in an async method.
   Future<void> initMparticle() async {
-    mpInstance = await MparticleFlutterSdk.getInstance();
-    mpInstance?.rokt.events('StgRoktShoppableAds', (event) {
-      print("Rokt event: $event");
-    });
-    if (mpInstance != null) {
+    try {
+      if (kIsWeb) {
+        mpInstance = await MparticleFlutterSdk.waitUntilReady();
+      } else {
+        mpInstance = await MparticleFlutterSdk.initialize(
+          MparticleOptions(
+            apiKey: const String.fromEnvironment(
+              'MP_API_KEY',
+              defaultValue: 'example-key',
+            ),
+            apiSecret: const String.fromEnvironment(
+              'MP_API_SECRET',
+              defaultValue: 'example-secret',
+            ),
+            logLevel: MparticleLogLevel.verbose,
+          ),
+        );
+      }
+      mpInstance?.rokt.events('StgRoktShoppableAds', (event) {
+        print("Rokt event: $event");
+      });
       setState(() {
         _isInitialized = true;
       });
+    } on MparticleInitException catch (e) {
+      print('mParticle init failed: ${e.code}');
     }
   }
 
@@ -331,9 +351,10 @@ class _MyAppState extends State<MyApp> {
                     .setIdentity(
                         identityType: IdentityType.Email,
                         value: 'email2@gmail.com');
-                mpInstance?.identity.login(identityRequest: identityRequest).then(
-                    identityCallbackSuccess,
-                    onError: identityCallbackFailure);
+                mpInstance?.identity
+                    .login(identityRequest: identityRequest)
+                    .then(identityCallbackSuccess,
+                        onError: identityCallbackFailure);
               }),
               buildButton('Modify', () {
                 var identityRequest = MparticleFlutterSdk.identityRequest;
@@ -373,7 +394,8 @@ class _MyAppState extends State<MyApp> {
                 var endTime = DateTime.now().millisecondsSinceEpoch;
 
                 var userAliasRequest = AliasRequest(
-                    sourceMpid: 'sourceMPID', destinationMpid: 'destinationMPID');
+                    sourceMpid: 'sourceMPID',
+                    destinationMpid: 'destinationMPID');
                 userAliasRequest.setStartTime(startTime);
                 userAliasRequest.setEndTime(endTime);
                 mpInstance?.identity.aliasUsers(aliasRequest: userAliasRequest);
@@ -387,9 +409,11 @@ class _MyAppState extends State<MyApp> {
                     .setIdentity(
                         identityType: IdentityType.Email,
                         value: 'email5@gmail.com');
-                mpInstance?.identity.login(identityRequest: identityRequest).then(
-                    (IdentityApiResult successResponse) {
-                  String? previousMPID = successResponse.previousUser?.getMPID();
+                mpInstance?.identity
+                    .login(identityRequest: identityRequest)
+                    .then((IdentityApiResult successResponse) {
+                  String? previousMPID =
+                      successResponse.previousUser?.getMPID();
                   if (previousMPID != null) {
                     var userAliasRequest = AliasRequest(
                         sourceMpid: previousMPID,
@@ -518,9 +542,11 @@ class _MyAppState extends State<MyApp> {
                     location: 'loction test',
                     timestamp: DateTime.now().millisecondsSinceEpoch);
 
-                user?.addGDPRConsentState(consent: gdprConsent, purpose: 'test');
+                user?.addGDPRConsentState(
+                    consent: gdprConsent, purpose: 'test');
               }),
-              buildButton('user - add 2nd approved GDPR Consent State', () async {
+              buildButton('user - add 2nd approved GDPR Consent State',
+                  () async {
                 var user = await mpInstance?.getCurrentUser();
                 var gdprConsent = (Consent(consented: true))
                   ..document = 'document test2';

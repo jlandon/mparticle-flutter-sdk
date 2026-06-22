@@ -1,4 +1,4 @@
-#import "MparticleFlutterSdkPlugin.h"
+#import "./include/mparticle_flutter_sdk/MparticleFlutterSdkPlugin.h"
 #if __has_include(<mparticle_flutter_sdk/mparticle_flutter_sdk-Swift.h>)
 #import <mparticle_flutter_sdk/mparticle_flutter_sdk-Swift.h>
 #else

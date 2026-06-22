@@ -20,9 +20,11 @@ void main() {
   MethodCall? methodCall;
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  MparticleFlutterSdk mp = MparticleFlutterSdk();
+  MparticleFlutterSdk mp = MparticleFlutterSdk.testInstance();
 
   setUp(() async {
+    MparticleFlutterSdk.resetForTest();
+    mp = MparticleFlutterSdk.testInstance();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
       channel,
@@ -38,6 +40,53 @@ void main() {
         .setMockMethodCallHandler(channel, null);
     methodCall = null;
     mp.clearPlaceholders();
+    MparticleFlutterSdk.resetForTest();
+  });
+
+  group('initialize', () {
+    test('toJson omits initTimeout and redacts toString', () {
+      final options = MparticleOptions(
+        apiKey: 'key',
+        apiSecret: 'secret',
+        logLevel: MparticleLogLevel.verbose,
+      );
+      expect(options.toJson().containsKey('initTimeout'), isFalse);
+      expect(options.toString(), contains('[REDACTED]'));
+      expect(options.toString(), isNot(contains('secret')));
+    });
+
+    test('empty credentials throw MP_INIT_INVALID_CREDENTIALS', () {
+      expect(
+        () => MparticleOptions(apiKey: ' ', apiSecret: 'x').validate(),
+        throwsA(isA<MparticleInitException>().having(
+          (e) => e.code,
+          'code',
+          MparticleInitErrorCodes.invalidCredentials,
+        )),
+      );
+    });
+
+    test('initialize invokes channel with wire payload', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        channel,
+        (MethodCall call) async {
+          methodCall = call;
+          if (call.method == 'initialize') {
+            return null;
+          }
+          return null;
+        },
+      );
+
+      MparticleFlutterSdk.resetForTest();
+      final sdk = await MparticleFlutterSdk.initialize(
+        MparticleOptions(apiKey: 'key', apiSecret: 'secret'),
+      );
+      expect(sdk, isNotNull);
+      expect(methodCall?.method, 'initialize');
+      expect(methodCall?.arguments['apiKey'], 'key');
+    });
   });
 
   group('mParticle Dart API Layer', () {
@@ -334,9 +383,7 @@ void main() {
       await mp.identity.identify();
       expect(
         methodCall,
-        isMethodCall('identify', arguments: {
-          'identityRequest': {}
-        }),
+        isMethodCall('identify', arguments: {'identityRequest': {}}),
       );
     });
 
@@ -374,9 +421,7 @@ void main() {
       await mp.identity.login();
       expect(
         methodCall,
-        isMethodCall('login', arguments: {
-          'identityRequest': {}
-        }),
+        isMethodCall('login', arguments: {'identityRequest': {}}),
       );
     });
 
@@ -393,9 +438,7 @@ void main() {
       await mp.identity.logout();
       expect(
         methodCall,
-        isMethodCall('logout', arguments: {
-          'identityRequest': {}
-        }),
+        isMethodCall('logout', arguments: {'identityRequest': {}}),
       );
     });
 
@@ -432,8 +475,7 @@ void main() {
       );
 
       IdentityRequest request = IdentityRequest()
-        ..setIdentity(
-            identityType: IdentityType.CustomerId, value: 'user-123');
+        ..setIdentity(identityType: IdentityType.CustomerId, value: 'user-123');
       await mp.identity.logout(identityRequest: request);
       expect(
         methodCall,

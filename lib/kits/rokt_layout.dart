@@ -91,7 +91,8 @@ class _RoktContainerState extends State<RoktLayout>
   }
 
   void _onPlatformViewCreated(int id) {
-    MparticleFlutterSdk.getInstance().then((value) => value?.attachPlaceholder(id: id, name: widget.placeholderName));
+    MparticleFlutterSdk.instance
+        .attachPlaceholder(id: id, name: widget.placeholderName);
 
     _layoutController = LayoutController(
         id: id,

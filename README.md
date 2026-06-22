@@ -1,17 +1,18 @@
 # mparticle_flutter_sdk
 
-Flutter allows developers to use a single code base to deploy to multiple platforms.  Now, with the mParticle Flutter Plugin, you can leverage a single API to deploy your data to hundreds of integrations from your iOS, Android, and Web apps.
+Flutter allows developers to use a single code base to deploy to multiple platforms. Now, with the mParticle Flutter Plugin, you can leverage a single API to deploy your data to hundreds of integrations from your iOS, Android, and Web apps.
 
 See the table below to see what features are currently supported
 
 ### Supported Features
-| Method | Android | iOS | Web | Notes |
-|---|---|---|---| --- |
-| Custom Events | X | X | X |  |
-| Page Views | X | X | X |  |
-| Identity | X | X | X |  |
-| eCommerce | X | X | X |  |
-| Consent | X | X | X |  |
+
+| Method        | Android | iOS | Web | Notes |
+| ------------- | ------- | --- | --- | ----- |
+| Custom Events | X       | X   | X   |       |
+| Page Views    | X       | X   | X   |       |
+| Identity      | X       | X   | X   |       |
+| eCommerce     | X       | X   | X   |       |
+| Consent       | X       | X   | X   |       |
 
 ## Installation
 
@@ -34,216 +35,58 @@ dependencies:
 import 'package:mparticle_flutter_sdk/mparticle_flutter_sdk.dart'
 ```
 
-Now that you have the mParticle Dart plugin, install mParticle on your native/web platforms.  Be sure to include an API Key and Secret where required or you will see errors in your logs when launching your app.
+Now initialize mParticle from Dart. Native Gradle, Podfile, Application, and AppDelegate setup is **not required** for Android/iOS (Rokt kits are bundled in the plugin).
 
-### <a name="Android"></a>Android
+### Mobile (Android & iOS)
 
-To install mParticle on an Android platform:
+1. Add your mParticle key and secret from [your workspace dashboard](https://app.mparticle.com/setup/inputs/apps).
+2. Call `MparticleFlutterSdk.initialize()` before `runApp()`:
 
-1. Add the following dependencies to your app's `build.gradle`:
+```dart
+import 'package:flutter/widgets.dart';
+import 'package:mparticle_flutter_sdk/mparticle_flutter_sdk.dart';
 
-```groovy
-dependencies {
-    implementation 'com.mparticle:android-core:5.79.0'
-    // Required only if you use Rokt APIs from Flutter
-    implementation 'com.mparticle:android-rokt-kit:5.79.0'
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-    // Required for gathering Android Advertising ID (see below)
-    implementation 'com.google.android.gms:play-services-ads-identifier:16.0.0'
+  final mp = await MparticleFlutterSdk.initialize(
+    MparticleOptions(
+      apiKey: const String.fromEnvironment('MP_API_KEY'),
+      apiSecret: const String.fromEnvironment('MP_API_SECRET'),
+      logLevel: MparticleLogLevel.warning,
+      customBaseUrl: null, // optional HTTPS CNAME
+      ios: IOSOptions(
+        roktPaymentExtension: RoktPaymentExtensionOptions(
+          applePayMerchantId: 'merchant.com.example.app',
+        ),
+      ),
+    ),
+  );
 
-    // Recommended to query the Google Play install referrer
-    implementation 'com.android.installreferrer:installreferrer:1.0'
+  runApp(MyApp(mp: mp));
 }
 ```
 
-2. Grab your mParticle key and secret from [your workspace's dashboard](https://app.mparticle.com/setup/inputs/apps) and construct an `MParticleOptions` object.
-
-3. Call `start` from the `onCreate` method of your app's `Application` class. It's crucial that the SDK be started here for proper session management. If you don't already have an `Application` class, create it and then specify its fully-qualified name in the `<application>` tag of your app's `AndroidManifest.xml`.
-
-```java
-package com.example.myapp;
-
-import android.app.Application;
-import com.mparticle.MParticle;
-import com.mparticle.MParticleOptions;
-
-public class MyApplication extends Application {
-    @Override
-    public void onCreate() {
-        super.onCreate();
-        MParticleOptions options = MParticleOptions.builder(this)
-            .credentials("REPLACE ME WITH KEY","REPLACE ME WITH SECRET")
-            .setLogLevel(MParticle.LogLevel.VERBOSE)
-            .identify(identifyRequest)
-            .identifyTask(
-                new BaseIdentityTask()
-                        .addFailureListener(this)
-                        .addSuccessListener(this)
-                    )
-            .attributionListener(this)
-            .build();
-
-        MParticle.start(options);
-    }
-}
-```
-
-```kotlin
-import com.mparticle.MParticle
-import com.mparticle.MParticleOptions
-
-class ExampleApplication : Application() {
-    override fun onCreate() {
-        super.onCreate()
-        val options = MParticleOptions.builder(this)
-            .credentials("REPLACE ME WITH KEY", "REPLACE ME WITH SECRET")
-            .build()
-        MParticle.start(options)
-    }
-}
-```
-
-Optional: if your team uses a custom CNAME endpoint, configure `NetworkOptions` separately:
-
-```java
-import com.mparticle.networking.NetworkOptions;
-
-MParticleOptions options = MParticleOptions.builder(this)
-    .credentials("REPLACE ME WITH KEY","REPLACE ME WITH SECRET")
-    .networkOptions(NetworkOptions.withNetworkOptions("https://rkt.example.com"))
-    .build();
-```
-
-```kotlin
-import com.mparticle.networking.NetworkOptions
-
-val options = MParticleOptions.builder(this)
-    .credentials("REPLACE ME WITH KEY", "REPLACE ME WITH SECRET")
-    .networkOptions(NetworkOptions.withNetworkOptions("https://rkt.example.com"))
-    .build()
-```
-
-> **Warning:** Don't log events in your `Application.onCreate()`. Android may instantiate your `Application` class for a lot of reasons, in the background, while the user isn't even using their device. 
-For more help, see [the Android set up docs](https://docs.mparticle.com/developers/sdk/android/getting-started/#create-an-input).
-
-### <a name="iOS"></a>iOS
-
-Configuring iOS:
-
-To install mParticle on an iOS platform:
-
-
-1. Copy your mParticle key and secret** from [your app's dashboard][1].
-
-[1]: https://app.mparticle.com/apps
-
-2. Install the SDK using CocoaPods:
+Run with credentials:
 
 ```bash
-$ # Update your Podfile to depend on 'mParticle-Apple-SDK' version 9.2.0 or later
-$ pod install
+flutter run \
+  --dart-define=MP_API_KEY=YOUR_KEY \
+  --dart-define=MP_API_SECRET=YOUR_SECRET
 ```
 
-The mParticle SDK is initialized by calling the `startWithOptions` method within the `application:didFinishLaunchingWithOptions:` delegate call. Preferably the location of the initialization method call should be one of the last statements in the `application:didFinishLaunchingWithOptions:`. The `startWithOptions` method requires an options argument containing your key and secret and an initial Identity request.
+**Android Rokt events:** extend `FlutterFragmentActivity` for your `MainActivity` (one-line change).
 
-> Note that you must initialize the SDK in the `application:didFinishLaunchingWithOptions:` method. Other parts of the SDK rely on the `UIApplicationDidBecomeActiveNotification` notification to function properly. Failing to start the SDK as indicated will impair it. Also, please do **not** use _GCD_'s `dispatch_async` to start the SDK.
-For more help, see [the full iOS set up docs](https://docs.mparticle.com/developers/sdk/ios/getting-started/#create-an-input).
+**Rokt bundle:** all apps inherit Rokt native dependencies (~1–2 MB Android APK impact).
 
-3. Import and start the mParticle Apple SDK into Swift or Objective-C.
-#### Swift Example
+Requires **Flutter ≥ 3.44.0** for Swift Package Manager support on iOS.
 
-```swift
-import mParticle_Apple_SDK
-
-func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplicationLaunchOptionsKey: Any]?) -> Bool {
-        
-       // Override point for customization after application launch.
-        let mParticleOptions = MParticleOptions(key: "<<<App Key Here>>>", secret: "<<<App Secret Here>>>")
-        
-       //Please see the Identity page for more information on building this object
-        let request = MPIdentityApiRequest()
-        request.email = "email@example.com"
-        mParticleOptions.identifyRequest = request
-        mParticleOptions.onIdentifyComplete = { (apiResult, error) in
-            NSLog("Identify complete. userId = %@ error = %@", apiResult?.user.userId.stringValue ?? "Null User ID", error?.localizedDescription ?? "No Error Available")
-        }
-        mParticleOptions.onAttributionComplete = { (attributionResult, error) in
-            NSLog("Attribution Complete. attributionResults = %@", attributionResult?.linkInfo ?? "Null attributionResults")
-        }
-        
-       //Start the SDK
-        MParticle.sharedInstance().start(with: mParticleOptions)
-        
-       return true
-}
-```
-
-#### Objective-C Example
-
-For apps supporting iOS 8 and above, Apple recommends using the import syntax for **modules** or **semantic import**. However, if you prefer the traditional CocoaPods and static libraries delivery mechanism, that is fully supported as well.
-
-If you are using mParticle as a framework, your import statement will be as follows:
-
-```objective-c
-@import mParticle_Apple_SDK;                // Apple recommended syntax, but requires "Enable Modules (C and Objective-C)" in pbxproj
-#import <mParticle_Apple_SDK/mParticle.h>   // Works when modules are not enabled
-
-```
-
-Otherwise, for CocoaPods without `use_frameworks!`, you can use either of these statements:
-
-```objective-c
-#import <mParticle-Apple-SDK/mParticle.h>
-#import "mParticle.h"
-```
-
-Next, you'll need to start the SDK:
-
-```objective-c
-- (BOOL)application:(UIApplication *)application
-        didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
-
-    MParticleOptions *mParticleOptions = [MParticleOptions optionsWithKey:@"REPLACE ME"
-                                                                   secret:@"REPLACE ME"];
-    
-    //Please see the Identity page for more information on building this object
-    MPIdentityApiRequest *request = [MPIdentityApiRequest requestWithEmptyUser];
-    request.email = @"email@example.com";
-    mParticleOptions.identifyRequest = request;
-    mParticleOptions.onIdentifyComplete = ^(MPIdentityApiResult * _Nullable apiResult, NSError * _Nullable error) {
-        NSLog(@"Identify complete. userId = %@ error = %@", apiResult.user.userId, error);
-    };
-    mParticleOptions.onAttributionComplete(MPAttributionResult * _Nullable attributionResult, NSError * _Nullable error) {
-        NSLog(@"Attribution Complete. attributionResults = %@", attributionResult.linkInfo)
-    }
-    
-    [[MParticle sharedInstance] startWithOptions:mParticleOptions];
-    
-    return YES;
-}
-```
-
-Optional: if your team uses a custom CNAME endpoint, configure `MPNetworkOptions` separately:
-
-```swift
-let networkOptions = MPNetworkOptions()
-networkOptions.customBaseURL = URL(string: "https://rkt.example.com")
-mParticleOptions.networkOptions = networkOptions
-```
-
-```objective-c
-MPNetworkOptions *networkOptions = [MPNetworkOptions new];
-networkOptions.customBaseURL = [NSURL URLWithString:@"https://rkt.example.com"];
-mParticleOptions.networkOptions = networkOptions;
-```
-
-See [Identity](https://docs.mparticle.com/developers/sdk/ios/idsync/) for more information on supplying an `MPIdentityApiRequest` object during SDK initialization.
-
+See [MIGRATING.md](./MIGRATING.md) for the 2.x → 3.0 upgrade guide.
 
 ### <a name="Web"></a>Web
 
-
 Add the mParticle snippet to your `web/index.html` file as high as possible on the page within the <head> tag, per our [Web Docs](https://docs.mparticle.com/developers/sdk/web/getting-started/).
+
 ```html
 <script type="text/javascript">
   //configure the SDK
@@ -272,25 +115,34 @@ Add the mParticle snippet to your `web/index.html` file as high as possible on t
   )("REPLACE WITH API KEY");
 </script>
 ```
+
 For more help, see the [full Web set up docs](https://docs.mparticle.com/developers/sdk/web/getting-started/#create-an-input).
+
+After the snippet loads, call `await MparticleFlutterSdk.waitUntilReady()` from Dart (do **not** call `initialize()` on web).
 
 ## Usage
 
-Each of our Dart methods is mapped to an underlying mParticle SDK at the platform level. Note that per Dart's [documentation](https://flutter.dev/docs/development/platform-integration/platform-channels#architecture, calling into platform specific code is asynchronous to ensure the user interface remains responsive.  In your code, you can swap usage between `async` and `then` in accordance to your app's requirements.
+Each of our Dart methods is mapped to an underlying mParticle SDK at the platform level. Note that per Dart's [documentation](https://flutter.dev/docs/development/platform-integration/platform-channels#architecture, calling into platform specific code is asynchronous to ensure the user interface remains responsive. In your code, you can swap usage between `async` and `then` in accordance to your app's requirements.
 
 For a full description of all classes, methods, and properties, see the [mParticle Flutter SDK API Reference](https://pub.dev/documentation/mparticle_flutter_sdk/latest/).
 
 ### Import
 
 **Importing** the module:
+
 ```dart
 import 'package:mparticle_flutter_sdk/mparticle_flutter_sdk.dart';
 ```
 
-You must first call `getInstance` on `MparticleFlutterSdk` before each method is called.  This ensures the underlying mParticle SDK has been initialized.  Per Flutter's [plugin documentation](https://flutter.dev/docs/development/platform-integration/platform-channels),  messages between the Dart plugin and underlying platforms must be passed asynchronously to ensure the user interface remains responsive. Therefore, to ensure code is performant to your team's requirements, you may refactor instances of `await` with `then` and vice versa in the examples below.
+Call `MparticleFlutterSdk.initialize()` on Android/iOS (or `waitUntilReady()` on web after the JS snippet) before other SDK methods.
 
 ```dart
-MparticleFlutterSdk? mpInstance = await MparticleFlutterSdk.getInstance();
+final mpInstance = await MparticleFlutterSdk.initialize(
+  MparticleOptions(
+    apiKey: 'YOUR_KEY',
+    apiSecret: 'YOUR_SECRET',
+  ),
+);
 ```
 
 ### Rokt
@@ -328,21 +180,20 @@ await mpInstance?.rokt.selectShoppableAds(
 );
 ```
 
-To enable iOS payment flows for shoppable ads, add the payment extension pod in your app `ios/Podfile` and register it natively after `MParticle.sharedInstance().start(with:)`:
+To enable iOS payment flows for shoppable ads, pass `IOSOptions.roktPaymentExtension` to `initialize()`:
 
-```ruby
-pod 'RoktPaymentExtension'
-```
-
-```swift
-import RoktPaymentExtension
-
-if let paymentExtension = RoktPaymentExtension(
-  applePayMerchantId: "merchant.com.example.app",
-  urlScheme: nil
-) {
-  MParticle.sharedInstance().rokt.registerPaymentExtension(paymentExtension)
-}
+```dart
+await MparticleFlutterSdk.initialize(
+  MparticleOptions(
+    apiKey: 'YOUR_KEY',
+    apiSecret: 'YOUR_SECRET',
+    ios: IOSOptions(
+      roktPaymentExtension: RoktPaymentExtensionOptions(
+        applePayMerchantId: 'merchant.com.example.app',
+      ),
+    ),
+  ),
+);
 ```
 
 ### Custom Events
@@ -376,7 +227,7 @@ MPEvent event = MPEvent(
 mpInstance?.logEvent(event);
 ```
 
-By default, all events upload to the mParticle server unless explicitly set not to.  This is also available on Commerce Events when calling `logCommerceEvent`.  Support for `logScreenEvent` will be coming in the future.
+By default, all events upload to the mParticle server unless explicitly set not to. This is also available on Commerce Events when calling `logCommerceEvent`. Support for `logScreenEvent` will be coming in the future.
 
 To log screen events, import mParticle `ScreenEvent`:
 
@@ -506,6 +357,7 @@ mpInstance?.logCommerceEvent(commerceEvent);
 ```
 
 ### User
+
 Get the current user in order to apply and remove attributes, tags, etc.
 
 ```dart
@@ -531,7 +383,6 @@ user?.setUserTag(tag: 'tag1');
 user?.getUserAttributes();
 ```
 
-
 ```dart
 user?.removeUserAttribute(key: 'points');
 ```
@@ -542,8 +393,8 @@ user?.getUserIdentities().then((identities) {
 });
 ```
 
-
 ### IDSync
+
 IDSync is mParticle’s identity framework, enabling our customers to create a unified view of the customer. To read more about IDSync, see [here](https://docs.mparticle.com/guides/idsync/introduction).
 
 IDSync calls accept an optional `Identity Request`. If no request is provided, an empty identity request is used, which mirrors the behavior of the native iOS and Android SDKs.
@@ -563,9 +414,9 @@ identityRequest
         value: 'email@gmail.com');
 ```
 
-After an IdentityRequest is passed to one of the following IDSync methods -  `identify`, `login`, `logout`, or `modify`.
+After an IdentityRequest is passed to one of the following IDSync methods - `identify`, `login`, `logout`, or `modify`.
 
-Import the `SuccessResponse` and `FailureResponse` classes to write proper callbacks for Identity methods.  For brevity, we included an example of full error handling in only the `identify` example below, but this error handling can be used for any of the Identity calls.
+Import the `SuccessResponse` and `FailureResponse` classes to write proper callbacks for Identity methods. For brevity, we included an example of full error handling in only the `identify` example below, but this error handling can be used for any of the Identity calls.
 
 #### Identify
 
@@ -615,11 +466,11 @@ mpInstance?.identity
                 case IdentityClientErrorCodes.ClientNoConnection:
                     // retry the IDSync request
                 case IdentityClientErrorCodes.SSLError:
-                    // SSL configuration issue. 
+                    // SSL configuration issue.
                 case IdentityClientErrorCodes.OptOut:
                     // The user has opted out of data collection
                 case IdentityClientErrorCodes.Unknown:
-                    // 
+                    //
                 case IdentityClientErrorCodes.ActiveSession:
                 case IdentityClientErrorCodes.ValidationIssue:
                     // A web error that should never arise due to Dart's stronger typing
@@ -727,7 +578,7 @@ mpInstance?.identity
 
 Or with an identity request if needed:
 
-```dart 
+```dart
 var identityRequest = MparticleFlutterSdk.identityRequest;
 identityRequest
     .setIdentity(
@@ -747,7 +598,9 @@ mpInstance?.identity
 ```
 
 #### Aliasing Users
-This is a feature to transition data from "anonymous" users to "known" users.  To learn more about user aliasing, see [here](https://docs.mparticle.com/guides/idsync/aliasing/).
+
+This is a feature to transition data from "anonymous" users to "known" users. To learn more about user aliasing, see [here](https://docs.mparticle.com/guides/idsync/aliasing/).
+
 ```dart
 mpInstance?.identity
     .login(identityRequest: identityRequest)
@@ -766,11 +619,13 @@ mpInstance?.identity
 ```
 
 ### Consent
+
 To learn more about Consent on mParticle, see [here](https://docs.mparticle.com/guides/consent-management/);
 
 #### GDPR
 
 GDPR Consent requires a user to add it do:
+
 ```dart
 var user = await mpInstance?.getCurrentUser();
 ```
@@ -815,53 +670,53 @@ Consent? ccpaConsent = await user?.getCCPAConsentState();
 ```
 
 ### Native-only Methods
+
 A few methods are currently supported only on iOS/Android SDKs:
 
-* Get the SDK's opt out status
+- Get the SDK's opt out status
 
-    ```dart
-    var isOptedOut = await mpInstance?.getOptOut;
-    mpInstance?.setOptOut(optOutBoolean: !isOptedOut!);
-    ```
+  ```dart
+  var isOptedOut = await mpInstance?.getOptOut;
+  mpInstance?.setOptOut(optOutBoolean: !isOptedOut!);
+  ```
 
-* Check if a kit is active
+- Check if a kit is active
 
-    ```dart
-    import 'package:mparticle_flutter_sdk/kits/kits.dart';
+  ```dart
+  import 'package:mparticle_flutter_sdk/kits/kits.dart';
 
-    mpInstance?.isKitActive(kit: Kits['Braze']!).then((isActive) {
-        print(isActive);
-    });
-    ```
+  mpInstance?.isKitActive(kit: Kits['Braze']!).then((isActive) {
+      print(isActive);
+  });
+  ```
 
-* Push Registration
+- Push Registration
 
-    The method `mpInstance.logPushRegistration()` accepts two parameters. For Android, provide both `pushToken` and `senderId`. For iOS, provide the push token in the first parameter, and simply pass `null` for the second parameter
+  The method `mpInstance.logPushRegistration()` accepts two parameters. For Android, provide both `pushToken` and `senderId`. For iOS, provide the push token in the first parameter, and simply pass `null` for the second parameter
 
-    #### Android
+  #### Android
 
-    ```dart
-    mpInstance?.logPushRegistration(pushToken: 'pushToken123', senderId: 'senderId123');
-    ```
+  ```dart
+  mpInstance?.logPushRegistration(pushToken: 'pushToken123', senderId: 'senderId123');
+  ```
 
-    #### iOS
+  #### iOS
 
-    ```dart
-    mpInstance?.logPushRegistration(pushToken: 'pushToken123', senderId: null);
-    ```
+  ```dart
+  mpInstance?.logPushRegistration(pushToken: 'pushToken123', senderId: null);
+  ```
 
-* Set App Tracking Transparency (ATT) Status
+- Set App Tracking Transparency (ATT) Status
 
-    For iOS, you can set a user's ATT status as follows:
-    import 'package:mparticle_flutter_sdk/apple/authorization_status.dart';
+  For iOS, you can set a user's ATT status as follows:
+  import 'package:mparticle_flutter_sdk/apple/authorization_status.dart';
 
-    ```dart
-    
-    mpInstance?.setATTStatus(
-          attStatus: MPATTAuthorizationStatus.Authorized,
-          timestampInMillis: DateTime.now().millisecondsSinceEpoch);
-    ```
+  ```dart
 
+  mpInstance?.setATTStatus(
+        attStatus: MPATTAuthorizationStatus.Authorized,
+        timestampInMillis: DateTime.now().millisecondsSinceEpoch);
+  ```
 
 # License
 
