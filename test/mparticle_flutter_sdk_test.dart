@@ -87,6 +87,143 @@ void main() {
       expect(methodCall?.method, 'initialize');
       expect(methodCall?.arguments['apiKey'], 'key');
     });
+
+    test('invalid customBaseUrl throws MP_INIT_INVALID_BASE_URL', () {
+      expect(
+        () => MparticleOptions(
+          apiKey: 'key',
+          apiSecret: 'secret',
+          customBaseUrl: 'http://insecure.example',
+        ).validate(),
+        throwsA(isA<MparticleInitException>().having(
+          (e) => e.code,
+          'code',
+          MparticleInitErrorCodes.invalidBaseUrl,
+        )),
+      );
+    });
+
+    test('second initialize with different apiKey throws already started',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        channel,
+        (MethodCall call) async {
+          if (call.method == 'initialize') {
+            return null;
+          }
+          return null;
+        },
+      );
+
+      MparticleFlutterSdk.resetForTest();
+      await MparticleFlutterSdk.initialize(
+        MparticleOptions(apiKey: 'key-a', apiSecret: 'secret'),
+      );
+
+      await expectLater(
+        MparticleFlutterSdk.initialize(
+          MparticleOptions(apiKey: 'key-b', apiSecret: 'secret'),
+        ),
+        throwsA(isA<MparticleAlreadyInitializedException>()),
+      );
+    });
+
+    test(
+        'concurrent initialize waiters receive typed init exception on native failure',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        channel,
+        (MethodCall call) async {
+          if (call.method == 'initialize') {
+            await Future<void>.delayed(const Duration(milliseconds: 50));
+            throw PlatformException(
+              code: MparticleInitErrorCodes.invalidOptions,
+              message: 'native failure',
+            );
+          }
+          return null;
+        },
+      );
+
+      MparticleFlutterSdk.resetForTest();
+      final options = MparticleOptions(apiKey: 'key', apiSecret: 'secret');
+      final first = MparticleFlutterSdk.initialize(options);
+      final second = MparticleFlutterSdk.initialize(options);
+
+      await expectLater(
+        first,
+        throwsA(isA<MparticleInitException>().having(
+          (e) => e.code,
+          'code',
+          MparticleInitErrorCodes.invalidOptions,
+        )),
+      );
+      await expectLater(
+        second,
+        throwsA(isA<MparticleInitException>().having(
+          (e) => e.code,
+          'code',
+          MparticleInitErrorCodes.invalidOptions,
+        )),
+      );
+    });
+
+    test('initialize timeout throws MP_INIT_TIMEOUT', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        channel,
+        (MethodCall call) async {
+          if (call.method == 'initialize') {
+            await Future<void>.delayed(const Duration(seconds: 2));
+          }
+          return null;
+        },
+      );
+
+      MparticleFlutterSdk.resetForTest();
+      await expectLater(
+        MparticleFlutterSdk.initialize(
+          MparticleOptions(
+            apiKey: 'key',
+            apiSecret: 'secret',
+            initTimeout: const Duration(seconds: 1),
+          ),
+        ),
+        throwsA(isA<MparticleInitException>().having(
+          (e) => e.code,
+          'code',
+          MparticleInitErrorCodes.timeout,
+        )),
+      );
+    });
+
+    test(
+        'platform already started maps to MparticleAlreadyInitializedException',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        channel,
+        (MethodCall call) async {
+          if (call.method == 'initialize') {
+            throw PlatformException(
+              code: MparticleInitErrorCodes.alreadyStarted,
+              message: 'already started',
+            );
+          }
+          return null;
+        },
+      );
+
+      MparticleFlutterSdk.resetForTest();
+      await expectLater(
+        MparticleFlutterSdk.initialize(
+          MparticleOptions(apiKey: 'key', apiSecret: 'secret'),
+        ),
+        throwsA(isA<MparticleAlreadyInitializedException>()),
+      );
+    });
   });
 
   group('mParticle Dart API Layer', () {

@@ -93,6 +93,7 @@ class MparticleFlutterSdk {
 
     _initCompleter = Completer<MparticleFlutterSdk>();
     _initializedApiKey = options.apiKey;
+    final initFuture = _initCompleter!.future;
 
     try {
       await _channel.invokeMethod<void>('initialize', options.toJson()).timeout(
@@ -108,36 +109,21 @@ class MparticleFlutterSdk {
       _instance = sdk;
       _initialized = true;
       _placeholders.clear();
-      if (!_initCompleter!.isCompleted) {
-        _initCompleter!.complete(sdk);
-      }
-      return sdk;
+      _initCompleter!.complete(sdk);
     } on MparticleInitException catch (e) {
-      if (!_initCompleter!.isCompleted) {
-        _initCompleter!.completeError(e);
-      }
-      _initCompleter = null;
       _initializedApiKey = null;
-      rethrow;
+      _initCompleter!.completeError(e);
     } on PlatformException catch (e) {
-      if (!_initCompleter!.isCompleted) {
-        _initCompleter!.completeError(e);
-      }
-      _initCompleter = null;
       _initializedApiKey = null;
-      throwInitExceptionFromPlatform(e);
+      _initCompleter!.completeError(mapInitExceptionFromPlatform(e));
     } catch (e, stack) {
-      if (!_initCompleter!.isCompleted) {
-        _initCompleter!.completeError(e, stack);
-      }
-      _initCompleter = null;
       _initializedApiKey = null;
-      rethrow;
+      _initCompleter!.completeError(e, stack);
     } finally {
-      if (_initCompleter != null && _initCompleter!.isCompleted) {
-        _initCompleter = null;
-      }
+      _initCompleter = null;
     }
+
+    return initFuture;
   }
 
   /// Waits until the web SDK reports initialized via the JS snippet.

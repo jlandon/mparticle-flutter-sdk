@@ -140,10 +140,16 @@ roktEventChannel.receiveBroadcastStream().listen((dynamic event) {
 ### New Rokt API: `selectShoppableAds` (iOS only)
 
 ```dart
-await MparticleFlutterSdk.getInstance().then((mp) => mp?.rokt.selectShoppableAds(
-      identifier: 'shoppable-ads-placement',
-      attributes: {'email': 'user@example.com'},
-    ));
+final mp = await MparticleFlutterSdk.initialize(
+  MparticleOptions(
+    apiKey: const String.fromEnvironment('MP_API_KEY'),
+    apiSecret: const String.fromEnvironment('MP_API_SECRET'),
+  ),
+);
+await mp.rokt.selectShoppableAds(
+  identifier: 'shoppable-ads-placement',
+  attributes: {'email': 'user@example.com'},
+);
 ```
 
 - **iOS**: proxies to `MParticle.sharedInstance().rokt.selectShoppableAds(...)`.
@@ -152,4 +158,6 @@ await MparticleFlutterSdk.getInstance().then((mp) => mp?.rokt.selectShoppableAds
 
 Rokt event delivery now uses explicit subscription by identifier through `Rokt.events(...)`. Call `events(identifier, ...)` before `selectPlacements(...)` or `selectShoppableAds(...)` for that identifier.
 
-The Rokt payment extension (for example `RoktPaymentExtension`) is **not** proxied through Dart. Integrators must add the pod and register it directly from native Swift/Objective-C in the host app (for example `ios/Runner/AppDelegate.swift`), after `MParticle.sharedInstance().start(with:)`.
+**3.0+:** Register the Rokt payment extension from Dart via `IOSOptions.roktPaymentExtension` on `MparticleOptions` (see [README.md](./README.md)). Native AppDelegate registration is no longer required after Dart-only init.
+
+**2.x:** The Rokt payment extension was registered from native Swift/Objective-C in the host app (for example `ios/Runner/AppDelegate.swift`), after `MParticle.sharedInstance().start(with:)`.

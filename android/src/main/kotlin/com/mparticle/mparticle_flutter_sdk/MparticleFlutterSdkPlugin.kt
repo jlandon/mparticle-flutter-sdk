@@ -242,6 +242,7 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
         result.success(true)
       }
       "roktSubscribeToEvents" -> this.roktSubscribeToEvents(call, result)
+      "roktSelectPlacements" -> this.roktSelectPlacements(call, result)
       "roktSelectShoppableAds" -> this.roktSelectShoppableAds(call, result)
       "roktPurchaseFinalized" -> this.roktPurchaseFinalized(call, result)
       else -> {
@@ -562,11 +563,11 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
           .credentials(apiKey, apiSecret)
 
         call.argument<Int>("logLevel")?.let { logLevelIndex ->
-          builder.logLevel(parseLogLevel(logLevelIndex))
+          builder.logLevel(InitializeOptionsParser.parseLogLevel(logLevelIndex))
         }
 
         call.argument<Int>("environment")?.let { envIndex ->
-          builder.environment(parseEnvironment(envIndex))
+          builder.environment(InitializeOptionsParser.parseEnvironment(envIndex))
         }
 
         customBaseUrl?.let {
@@ -593,26 +594,6 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
       } catch (e: Exception) {
         result.error("MP_INIT_INVALID_OPTIONS", "Failed to initialize mParticle", null)
       }
-    }
-  }
-
-  private fun parseLogLevel(index: Int): MParticle.LogLevel {
-    return when (index) {
-      0 -> MParticle.LogLevel.NONE
-      1 -> MParticle.LogLevel.ERROR
-      2 -> MParticle.LogLevel.WARNING
-      3 -> MParticle.LogLevel.INFO
-      4 -> MParticle.LogLevel.DEBUG
-      5 -> MParticle.LogLevel.VERBOSE
-      else -> MParticle.LogLevel.WARNING
-    }
-  }
-
-  private fun parseEnvironment(index: Int): MParticle.Environment {
-    return when (index) {
-      1 -> MParticle.Environment.Development
-      2 -> MParticle.Environment.Production
-      else -> MParticle.Environment.AutoDetect
     }
   }
 

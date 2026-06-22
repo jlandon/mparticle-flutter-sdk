@@ -236,13 +236,19 @@ class MparticleAlreadyInitializedException extends MparticleInitException {
 }
 
 /// Maps a [PlatformException] from the initialize channel to typed errors.
-Never throwInitExceptionFromPlatform(PlatformException exception) {
+MparticleInitException mapInitExceptionFromPlatform(
+    PlatformException exception) {
   final code = exception.code;
   if (code == MparticleInitErrorCodes.alreadyStarted) {
-    throw MparticleAlreadyInitializedException();
+    return MparticleAlreadyInitializedException();
   }
-  throw MparticleInitException(
+  return MparticleInitException(
     code: code.isNotEmpty ? code : MparticleInitErrorCodes.invalidOptions,
     message: 'mParticle initialization failed.',
   );
+}
+
+/// Throws a typed initialization error mapped from [exception].
+Never throwInitExceptionFromPlatform(PlatformException exception) {
+  throw mapInitExceptionFromPlatform(exception);
 }
