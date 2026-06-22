@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Dart-driven `MparticleFlutterSdk.initialize()` with `MparticleOptions` for Android and iOS.
+- Typed init errors: `MparticleInitException`, `MparticleAlreadyInitializedException`, and stable `MP_INIT_*` codes (see README).
 - `MparticleFlutterSdk.waitUntilReady()` web entry path after JS snippet init.
 - `MparticleFlutterSdk.instance` post-init accessor.
 - Swift Package Manager support (`ios/mparticle_flutter_sdk/Package.swift`) alongside CocoaPods.

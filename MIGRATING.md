@@ -16,6 +16,8 @@ Version 3.0.0 introduces Dart-only mobile initialization and Swift Package Manag
 2. Delete `MParticle.start(with:)` from iOS `AppDelegate`.
 3. Remove duplicate mParticle Gradle and Podfile dependencies from your app.
 
+**Partial migration is unsupported.** If native `MParticle.start()` remains, Dart `initialize()` returns `MP_INIT_ALREADY_STARTED` (Android when `MParticle.getInstance()` is non-null; iOS when a current user session is already present). Remove all native start paths before calling Dart init.
+
 ### Add Dart initialization
 
 ```dart
@@ -30,6 +32,41 @@ await MparticleFlutterSdk.initialize(
 
 Web apps: keep the JS snippet in `index.html` and call `await MparticleFlutterSdk.waitUntilReady()`.
 
+### Handle initialization failures
+
+2.x native init could fail silently when using deprecated `getInstance()` (returns `null`). 3.0 `initialize()` throws typed exceptions:
+
+```dart
+try {
+  await MparticleFlutterSdk.initialize(options);
+} on MparticleAlreadyInitializedException {
+  // Second call with a different apiKey
+} on MparticleInitException catch (e) {
+  // e.code is a stable MP_INIT_* string; e.message includes native detail when available
+}
+```
+
+| Code                           | Android native | iOS native | Dart-only      |
+| ------------------------------ | -------------- | ---------- | -------------- |
+| `MP_INIT_INVALID_CREDENTIALS`  | yes            | yes        | yes (validate) |
+| `MP_INIT_INVALID_BASE_URL`     | yes            | yes        | yes (validate) |
+| `MP_INIT_INVALID_OPTIONS`      | yes            | yes        | yes (validate) |
+| `MP_INIT_ALREADY_STARTED`      | yes            | yes        | yes            |
+| `MP_INIT_TIMEOUT`              | —              | —          | yes            |
+| `MP_INIT_UNSUPPORTED_PLATFORM` | —              | —          | yes (web)      |
+
+### Map native options to MparticleOptions
+
+| 2.x native setting                   | 3.0 Dart field                                                 |
+| ------------------------------------ | -------------------------------------------------------------- |
+| API key / secret                     | `apiKey`, `apiSecret`                                          |
+| Log level                            | `logLevel` (`MparticleLogLevel`)                               |
+| Environment                          | `environment` (`MparticleEnvironment`)                         |
+| CNAME / custom base URL              | `customBaseUrl` (HTTPS)                                        |
+| Startup identify request             | `bootstrapIdentityRequest` (max 10 identities, 256 chars each) |
+| Rokt payment extension (AppDelegate) | `ios.roktPaymentExtension`                                     |
+| Init watchdog                        | `initTimeout` (Dart-only, default 5s, clamped 1–30s)           |
+
 ### Replace `getInstance()`
 
 | Before                                    | After                                                |
@@ -37,9 +74,21 @@ Web apps: keep the JS snippet in `index.html` and call `await MparticleFlutterSd
 | `await MparticleFlutterSdk.getInstance()` | `await MparticleFlutterSdk.initialize(options)`      |
 | nullable `mpInstance?.logEvent()`         | `MparticleFlutterSdk.instance.logEvent()` after init |
 
-### iOS `isInitialized` behavior
+`getInstance()` remains as a deprecated compatibility helper for legacy native-init apps but is not recommended. It returns `null` on failure instead of throwing typed errors.
 
-Pre-init calls now return `false` on iOS (2.x always returned `true`).
+### Platform `isInitialized` behavior
+
+| Platform | Pre-3.0                          | 3.0+ channel behavior                             |
+| -------- | -------------------------------- | ------------------------------------------------- |
+| iOS      | always `true` (1.1.1 regression) | `true` only after Dart `initialize()` completes   |
+| Android  | reflects native SDK              | `true` when `MParticle.getInstance()` is non-null |
+| Web      | JS store flag                    | `true` when web snippet reports ready             |
+
+After removing native init, use Dart `initialize()` on mobile — do not rely on `isInitialized` polling during migration.
+
+### iOS `isInitialized` behavior (summary)
+
+Pre-init calls now return `false` on iOS when using Dart-only init (2.x always returned `true`).
 
 ### Flutter version requirement
 
@@ -47,7 +96,15 @@ Requires **Flutter ≥ 3.44.0** when using Swift Package Manager (default in Flu
 
 ### Android Rokt events
 
-Extend `FlutterFragmentActivity` for `MainActivity` when using Rokt event subscriptions.
+Extend `FlutterFragmentActivity` for `MainActivity` when using Rokt event subscriptions:
+
+```kotlin
+import io.flutter.embedding.android.FlutterFragmentActivity
+
+class MainActivity : FlutterFragmentActivity()
+```
+
+If `MainActivity` is a plain `FlutterActivity`, `rokt.events()` throws `PlatformException` with code `MP_ROKT_LIFECYCLE_UNAVAILABLE`.
 
 ### iOS dependency pins
 
@@ -56,13 +113,6 @@ Extend `FlutterFragmentActivity` for `MainActivity` when using Rokt event subscr
 | mParticle-Apple-SDK  | `~> 9.2`          | `9.2.0`   |
 | mParticle-Rokt       | bundled in plugin | `9.0.0`   |
 | RoktPaymentExtension | bundled in plugin | `2.0.0`   |
-
-### Beta publish runbook
-
-1. Set `pubspec.yaml` version to `3.0.0-beta.1`.
-2. Run full CI verification.
-3. `flutter pub publish` and tag `v3.0.0-beta.1`.
-4. After community validation, cut GA `3.0.0` via release workflow.
 
 ## Migrating from versions < 2.0.0
 

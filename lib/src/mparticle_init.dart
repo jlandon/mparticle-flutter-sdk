@@ -242,9 +242,12 @@ MparticleInitException mapInitExceptionFromPlatform(
   if (code == MparticleInitErrorCodes.alreadyStarted) {
     return MparticleAlreadyInitializedException();
   }
+  final nativeMessage = exception.message?.trim();
   return MparticleInitException(
     code: code.isNotEmpty ? code : MparticleInitErrorCodes.invalidOptions,
-    message: 'mParticle initialization failed.',
+    message: nativeMessage != null && nativeMessage.isNotEmpty
+        ? nativeMessage
+        : 'mParticle initialization failed.',
   );
 }
 

@@ -103,6 +103,206 @@ void main() {
       );
     });
 
+    test('second initialize with same apiKey returns same instance', () async {
+      var initCallCount = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        channel,
+        (MethodCall call) async {
+          if (call.method == 'initialize') {
+            initCallCount++;
+            return null;
+          }
+          return null;
+        },
+      );
+
+      MparticleFlutterSdk.resetForTest();
+      final options = MparticleOptions(apiKey: 'key-a', apiSecret: 'secret');
+      final first = await MparticleFlutterSdk.initialize(options);
+      final second = await MparticleFlutterSdk.initialize(options);
+
+      expect(identical(first, second), isTrue);
+      expect(initCallCount, 1);
+    });
+
+    test('concurrent initialize success coalesces to one instance', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        channel,
+        (MethodCall call) async {
+          if (call.method == 'initialize') {
+            await Future<void>.delayed(const Duration(milliseconds: 50));
+            return null;
+          }
+          return null;
+        },
+      );
+
+      MparticleFlutterSdk.resetForTest();
+      final options = MparticleOptions(apiKey: 'key', apiSecret: 'secret');
+      final first = MparticleFlutterSdk.initialize(options);
+      final second = MparticleFlutterSdk.initialize(options);
+      final results = await Future.wait([first, second]);
+
+      expect(identical(results[0], results[1]), isTrue);
+    });
+
+    test('in-flight initialize with different apiKey throws already started',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        channel,
+        (MethodCall call) async {
+          if (call.method == 'initialize') {
+            await Future<void>.delayed(const Duration(milliseconds: 100));
+            return null;
+          }
+          return null;
+        },
+      );
+
+      MparticleFlutterSdk.resetForTest();
+      final first = MparticleFlutterSdk.initialize(
+        MparticleOptions(apiKey: 'key-a', apiSecret: 'secret'),
+      );
+
+      await expectLater(
+        MparticleFlutterSdk.initialize(
+          MparticleOptions(apiKey: 'key-b', apiSecret: 'secret'),
+        ),
+        throwsA(isA<MparticleAlreadyInitializedException>()),
+      );
+
+      await first;
+    });
+
+    test('bootstrapIdentityRequest rejects more than ten identities', () {
+      final identities = {
+        for (var i = 0; i < 11; i++)
+          IdentityType.values[i % IdentityType.values.length]: 'id-$i',
+      };
+      expect(
+        () => MparticleOptions(
+          apiKey: 'key',
+          apiSecret: 'secret',
+          bootstrapIdentityRequest: identities,
+        ).validate(),
+        throwsA(isA<MparticleInitException>().having(
+          (e) => e.code,
+          'code',
+          MparticleInitErrorCodes.invalidOptions,
+        )),
+      );
+    });
+
+    test('bootstrapIdentityRequest rejects empty identity values', () {
+      expect(
+        () => MparticleOptions(
+          apiKey: 'key',
+          apiSecret: 'secret',
+          bootstrapIdentityRequest: {IdentityType.Email: '  '},
+        ).validate(),
+        throwsA(isA<MparticleInitException>().having(
+          (e) => e.code,
+          'code',
+          MparticleInitErrorCodes.invalidOptions,
+        )),
+      );
+    });
+
+    test('bootstrapIdentityRequest rejects values over 256 characters', () {
+      expect(
+        () => MparticleOptions(
+          apiKey: 'key',
+          apiSecret: 'secret',
+          bootstrapIdentityRequest: {
+            IdentityType.Email: 'x' * 257,
+          },
+        ).validate(),
+        throwsA(isA<MparticleInitException>().having(
+          (e) => e.code,
+          'code',
+          MparticleInitErrorCodes.invalidOptions,
+        )),
+      );
+    });
+
+    test('invalid urlScheme throws MP_INIT_INVALID_OPTIONS', () {
+      expect(
+        () => MparticleOptions(
+          apiKey: 'key',
+          apiSecret: 'secret',
+          ios: IOSOptions(
+            roktPaymentExtension: RoktPaymentExtensionOptions(
+              applePayMerchantId: 'merchant.com.example',
+              urlScheme: '123-invalid',
+            ),
+          ),
+        ).validate(),
+        throwsA(isA<MparticleInitException>().having(
+          (e) => e.code,
+          'code',
+          MparticleInitErrorCodes.invalidOptions,
+        )),
+      );
+    });
+
+    test('initTimeout is clamped between 1 and 30 seconds', () {
+      final short = MparticleOptions(
+        apiKey: 'key',
+        apiSecret: 'secret',
+        initTimeout: const Duration(milliseconds: 500),
+      );
+      final long = MparticleOptions(
+        apiKey: 'key',
+        apiSecret: 'secret',
+        initTimeout: const Duration(seconds: 60),
+      );
+      expect(short.initTimeout, const Duration(seconds: 1));
+      expect(long.initTimeout, const Duration(seconds: 30));
+    });
+
+    test('bootstrapIdentityRequest serializes identity indices', () {
+      final json = MparticleOptions(
+        apiKey: 'key',
+        apiSecret: 'secret',
+        bootstrapIdentityRequest: {IdentityType.Email: 'test@example.com'},
+      ).toJson();
+      expect(
+        json['bootstrapIdentityRequest'],
+        {
+          'identities': {
+            IdentityType.Email.index.toString(): 'test@example.com'
+          }
+        },
+      );
+    });
+
+    test('mapInitExceptionFromPlatform preserves native message', () {
+      final mapped = mapInitExceptionFromPlatform(
+        PlatformException(
+          code: MparticleInitErrorCodes.invalidOptions,
+          message: 'Application context unavailable',
+        ),
+      );
+      expect(mapped.message, 'Application context unavailable');
+    });
+
+    test('instance throws StateError before initialize completes', () {
+      MparticleFlutterSdk.resetForTest();
+      expect(() => MparticleFlutterSdk.instance, throwsStateError);
+    });
+
+    test('waitUntilReady throws StateError on mobile before initialize',
+        () async {
+      MparticleFlutterSdk.resetForTest();
+      await expectLater(
+        MparticleFlutterSdk.waitUntilReady(),
+        throwsA(isA<StateError>()),
+      );
+    });
+
     test('second initialize with different apiKey throws already started',
         () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

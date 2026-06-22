@@ -93,7 +93,8 @@ class MparticleFlutterSdk {
 
     _initCompleter = Completer<MparticleFlutterSdk>();
     _initializedApiKey = options.apiKey;
-    final initFuture = _initCompleter!.future;
+    final completer = _initCompleter!;
+    final initFuture = completer.future;
 
     try {
       await _channel.invokeMethod<void>('initialize', options.toJson()).timeout(
@@ -109,16 +110,24 @@ class MparticleFlutterSdk {
       _instance = sdk;
       _initialized = true;
       _placeholders.clear();
-      _initCompleter!.complete(sdk);
+      if (!completer.isCompleted) {
+        completer.complete(sdk);
+      }
     } on MparticleInitException catch (e) {
       _initializedApiKey = null;
-      _initCompleter!.completeError(e);
+      if (!completer.isCompleted) {
+        completer.completeError(e);
+      }
     } on PlatformException catch (e) {
       _initializedApiKey = null;
-      _initCompleter!.completeError(mapInitExceptionFromPlatform(e));
+      if (!completer.isCompleted) {
+        completer.completeError(mapInitExceptionFromPlatform(e));
+      }
     } catch (e, stack) {
       _initializedApiKey = null;
-      _initCompleter!.completeError(e, stack);
+      if (!completer.isCompleted) {
+        completer.completeError(e, stack);
+      }
     } finally {
       _initCompleter = null;
     }
@@ -444,9 +453,17 @@ class Rokt {
       {};
 
   /// Subscribes to Rokt events for a specific [identifier].
-  void events(String identifier, void Function(dynamic event) onEvent) {
+  ///
+  /// Await this before [selectPlacements] so subscription failures surface as
+  /// [PlatformException] (for example when Android `MainActivity` is not a
+  /// [FlutterFragmentActivity]).
+  Future<void> events(
+      String identifier, void Function(dynamic event) onEvent) async {
     _eventSubscriptions[identifier]?.cancel();
-    _channel.invokeMethod('roktSubscribeToEvents', {'identifier': identifier});
+    await _channel.invokeMethod<void>(
+      'roktSubscribeToEvents',
+      {'identifier': identifier},
+    );
     _eventSubscriptions[identifier] =
         _eventChannel.receiveBroadcastStream().listen(onEvent);
   }

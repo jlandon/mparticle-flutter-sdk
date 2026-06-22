@@ -26,12 +26,12 @@ class RoktEventHandler(private val messenger: BinaryMessenger) {
         setupEventChannel()
     }
 
-    fun subscribeToEvents(events: Flow<RoktEvent>, identifier: String? = null, activity: Activity) {
+    fun subscribeToEvents(events: Flow<RoktEvent>, identifier: String? = null, activity: Activity): Boolean {
         val activeJob = eventSubscriptions[identifier.orEmpty()]?.takeIf { it.isActive }
         if (activeJob != null) {
-            return
+            return true
         }
-        val owner = activity as? LifecycleOwner ?: return
+        val owner = activity as? LifecycleOwner ?: return false
 
         val job = owner.lifecycleScope.launch {
             owner.lifecycle.repeatOnLifecycle(Lifecycle.State.CREATED) {
@@ -69,6 +69,7 @@ class RoktEventHandler(private val messenger: BinaryMessenger) {
             }
         }
         eventSubscriptions[identifier.orEmpty()] = job
+        return true
     }
 
     private fun setupEventChannel() {

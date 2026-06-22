@@ -84,14 +84,14 @@ class _MyAppState extends State<MyApp> {
           ),
         );
       }
-      mpInstance?.rokt.events('StgRoktShoppableAds', (event) {
+      await mpInstance?.rokt.events('StgRoktShoppableAds', (event) {
         print("Rokt event: $event");
       });
       setState(() {
         _isInitialized = true;
       });
     } on MparticleInitException catch (e) {
-      print('mParticle init failed: ${e.code}');
+      print('mParticle init failed: ${e.code}: ${e.message}');
     }
   }
 

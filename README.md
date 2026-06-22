@@ -26,7 +26,7 @@ Specifying this dependency adds a line like the following to your package's `pub
 
 ```bash
 dependencies:
-    mparticle_flutter_sdk: ^0.0.1
+    mparticle_flutter_sdk: ^3.0.0-beta.1
 ```
 
 2.  Import the package into your Dart code:
@@ -75,11 +75,45 @@ flutter run \
   --dart-define=MP_API_SECRET=YOUR_SECRET
 ```
 
-**Android Rokt events:** extend `FlutterFragmentActivity` for your `MainActivity` (one-line change).
+**Android Rokt events:** extend `FlutterFragmentActivity` for your `MainActivity`:
+
+```kotlin
+import io.flutter.embedding.android.FlutterFragmentActivity
+
+class MainActivity : FlutterFragmentActivity()
+```
 
 **Rokt bundle:** all apps inherit Rokt native dependencies (~1–2 MB Android APK impact).
 
 Requires **Flutter ≥ 3.44.0** for Swift Package Manager support on iOS.
+
+#### Initialization errors
+
+`initialize()` throws [MparticleInitException] with stable [MparticleInitErrorCodes] values:
+
+| Code                           | Where raised       | When                                                                             | Action                                               |
+| ------------------------------ | ------------------ | -------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `MP_INIT_INVALID_CREDENTIALS`  | Dart, Android, iOS | Empty `apiKey` / `apiSecret`                                                     | Pass non-empty credentials                           |
+| `MP_INIT_INVALID_BASE_URL`     | Dart, Android, iOS | `customBaseUrl` not HTTPS or not parseable                                       | Fix CNAME URL                                        |
+| `MP_INIT_INVALID_OPTIONS`      | Dart, Android, iOS | Invalid bootstrap identities, urlScheme, or native start failure                 | Fix options; check logcat/Xcode                      |
+| `MP_INIT_ALREADY_STARTED`      | Dart, Android, iOS | Second init with different key, or legacy native init still present              | Use one init path; remove native `MParticle.start()` |
+| `MP_INIT_TIMEOUT`              | Dart               | Method channel did not complete within `initTimeout` (default 5s, clamped 1–30s) | Increase `initTimeout` or fix native startup         |
+| `MP_INIT_UNSUPPORTED_PLATFORM` | Dart               | `initialize()` on web                                                            | Use JS snippet + `waitUntilReady()`                  |
+
+```dart
+try {
+  await MparticleFlutterSdk.initialize(options);
+} on MparticleAlreadyInitializedException {
+  // Different apiKey after successful init
+} on MparticleInitException catch (e) {
+  print('Init failed: ${e.code} — ${e.message}');
+}
+```
+
+#### MparticleOptions reference
+
+- `initTimeout` — Dart-only guard around the native init call (default 5 seconds; clamped to 1–30 seconds). Not sent over the method channel.
+- `bootstrapIdentityRequest` — optional startup identify (max **10** identities, max **256** characters per value). Adds latency before `runApp()`; prefer `identity.identify()` after startup when possible.
 
 See [MIGRATING.md](./MIGRATING.md) for the 2.x → 3.0 upgrade guide.
 
@@ -118,7 +152,9 @@ Add the mParticle snippet to your `web/index.html` file as high as possible on t
 
 For more help, see the [full Web set up docs](https://docs.mparticle.com/developers/sdk/web/getting-started/#create-an-input).
 
-After the snippet loads, call `await MparticleFlutterSdk.waitUntilReady()` from Dart (do **not** call `initialize()` on web).
+After the snippet loads, call `await MparticleFlutterSdk.waitUntilReady()` from Dart (do **not** call `initialize()` on web). Optional `timeout` (default 5 seconds) throws `MparticleInitException` with code `MP_INIT_TIMEOUT` when the JS SDK never reports ready.
+
+On mobile, `waitUntilReady()` throws `StateError` — use `initialize()` instead.
 
 ## Usage
 
@@ -149,7 +185,7 @@ final mpInstance = await MparticleFlutterSdk.initialize(
 
 `Rokt` is exposed under `mpInstance?.rokt` and supports:
 
-- `events(String identifier, void Function(dynamic event) onEvent)`
+- `Future<void> events(String identifier, void Function(dynamic event) onEvent)` — await before `selectPlacements`
 - `selectPlacements(...)`
 - `selectShoppableAds(...)` (iOS implementation; Android no-op for parity; web unsupported)
 - `purchaseFinalized(...)` (iOS)
@@ -157,7 +193,7 @@ final mpInstance = await MparticleFlutterSdk.initialize(
 Subscribe to events for a placement identifier before selecting placements:
 
 ```dart
-mpInstance?.rokt.events('MSDKEmbeddedLayout', (event) {
+await mpInstance?.rokt.events('MSDKEmbeddedLayout', (event) {
   print('Rokt event: $event');
 });
 
@@ -170,7 +206,7 @@ await mpInstance?.rokt.selectPlacements(
 For iOS shoppable ads:
 
 ```dart
-mpInstance?.rokt.events('StgRoktShoppableAds', (event) {
+await mpInstance?.rokt.events('StgRoktShoppableAds', (event) {
   print('Rokt shoppable event: $event');
 });
 

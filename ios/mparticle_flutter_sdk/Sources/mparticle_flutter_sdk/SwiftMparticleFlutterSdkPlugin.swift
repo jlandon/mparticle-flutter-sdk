@@ -628,6 +628,15 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
       return
     }
 
+    if MParticle.sharedInstance().identity.currentUser != nil {
+      result(FlutterError(
+        code: "MP_INIT_ALREADY_STARTED",
+        message: "mParticle already initialized natively; remove AppDelegate start before Dart initialize()",
+        details: nil
+      ))
+      return
+    }
+
     let options = MParticleOptions(key: apiKey, secret: apiSecret)
 
     if let logLevelIndex = args["logLevel"] as? Int,
@@ -648,11 +657,13 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
 
     if let customBaseUrl = args["customBaseUrl"] as? String {
       let trimmed = customBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
-      if let url = URL(string: trimmed) {
-        let networkOptions = MPNetworkOptions()
-        networkOptions.customBaseURL = url
-        options.networkOptions = networkOptions
+      guard let url = URL(string: trimmed), url.host != nil else {
+        result(FlutterError(code: "MP_INIT_INVALID_BASE_URL", message: "customBaseUrl is not a valid https URL", details: nil))
+        return
       }
+      let networkOptions = MPNetworkOptions()
+      networkOptions.customBaseURL = url
+      options.networkOptions = networkOptions
     }
 
     if let bootstrap = args["bootstrapIdentityRequest"] as? [String: Any],
@@ -666,24 +677,28 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
       options.identifyRequest = createIdentityRequest(identitiesKeyedOnType: identityMap)
     }
 
-    MParticle.sharedInstance().start(with: options)
-    MParticle._setWrapperSdk_internal(MPWrapperSdk.flutter, version: "")
+    do {
+      MParticle.sharedInstance().start(with: options)
+      MParticle._setWrapperSdk_internal(MPWrapperSdk.flutter, version: "")
 
-    if let iosOptions = args["ios"] as? [String: Any],
-       let payment = iosOptions["roktPaymentExtension"] as? [String: Any],
-       let merchantId = payment["applePayMerchantId"] as? String {
-      let urlScheme = payment["urlScheme"] as? String
-      if let paymentExtension = RoktPaymentExtension(
-        applePayMerchantId: merchantId,
-        urlScheme: urlScheme
-      ) {
-        MParticle.sharedInstance().rokt.registerPaymentExtension(paymentExtension)
+      if let iosOptions = args["ios"] as? [String: Any],
+         let payment = iosOptions["roktPaymentExtension"] as? [String: Any],
+         let merchantId = payment["applePayMerchantId"] as? String {
+        let urlScheme = payment["urlScheme"] as? String
+        if let paymentExtension = RoktPaymentExtension(
+          applePayMerchantId: merchantId,
+          urlScheme: urlScheme
+        ) {
+          MParticle.sharedInstance().rokt.registerPaymentExtension(paymentExtension)
+        }
       }
-    }
 
-    SwiftMparticleFlutterSdkPlugin.initializedApiKey = apiKey
-    SwiftMparticleFlutterSdkPlugin.sdkStarted = true
-    result(nil)
+      SwiftMparticleFlutterSdkPlugin.initializedApiKey = apiKey
+      SwiftMparticleFlutterSdkPlugin.sdkStarted = true
+      result(nil)
+    } catch {
+      result(FlutterError(code: "MP_INIT_INVALID_OPTIONS", message: "Failed to initialize mParticle", details: nil))
+    }
   }
 
   private func registerPartnerFonts(_ typefaces: Dictionary<String, String>) {

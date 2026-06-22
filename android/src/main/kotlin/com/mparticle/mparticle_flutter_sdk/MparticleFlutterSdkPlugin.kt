@@ -548,7 +548,12 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
           result.success(null)
           return
         }
-        result.error("MP_INIT_ALREADY_STARTED", "mParticle already initialized", null)
+        val message = if (existingKey == null) {
+          "mParticle already initialized natively; remove Application/AppDelegate start before Dart initialize()"
+        } else {
+          "mParticle already initialized"
+        }
+        result.error("MP_INIT_ALREADY_STARTED", message, null)
         return
       }
 
@@ -855,11 +860,19 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
           result.error("MP_ROKT_ACTIVITY_UNAVAILABLE", "Activity unavailable for Rokt events", null)
           return
         }
-        roktEventHandler?.subscribeToEvents(
+        val subscribed = roktEventHandler?.subscribeToEvents(
           events = instance.Rokt().events(identifier),
           activity = currentActivity,
           identifier = identifier,
-        )
+        ) ?: false
+        if (!subscribed) {
+          result.error(
+            "MP_ROKT_LIFECYCLE_UNAVAILABLE",
+            "MainActivity must extend FlutterFragmentActivity for Rokt events",
+            null,
+          )
+          return
+        }
       }
       result.success(true)
     } ?: result.error(TAG, "No mParticle instance exists", null)
