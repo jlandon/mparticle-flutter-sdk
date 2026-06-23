@@ -5,6 +5,22 @@ import 'dart:js_interop';
 import 'package:mparticle_flutter_sdk/src/web_helpers/js_bridge.dart';
 import 'package:mparticle_flutter_sdk/src/web_helpers/web_identity_helpers.dart';
 
+JSObject? _userForMpid({
+  required MParticleJsBridge bridge,
+  required JSObject identity,
+  required Object? mpid,
+}) {
+  final user = bridge.callMethodVarArgs(
+    identity,
+    'getUser',
+    [bridge.jsifyValue(mpid)!],
+  );
+  if (user == null || user.isUndefinedOrNull) {
+    return null;
+  }
+  return user as JSObject;
+}
+
 String getGdprConsentState({
   required MParticleJsBridge bridge,
   required JSObject identity,
@@ -60,11 +76,10 @@ void addGdprConsentState({
   );
 
   final mpid = arguments['mpid'];
-  final user = bridge.callMethodVarArgs(
-    identity,
-    'getUser',
-    [bridge.jsifyValue(mpid)!],
-  ) as JSObject;
+  final user = _userForMpid(bridge: bridge, identity: identity, mpid: mpid);
+  if (user == null) {
+    return;
+  }
 
   var consentState = bridge.callMethodVarArgs(user, 'getConsentState', []);
   if (consentState == null || consentState.isUndefinedOrNull) {
@@ -88,11 +103,10 @@ void removeGdprConsentState({
   required Map<dynamic, dynamic> arguments,
 }) {
   final mpid = arguments['mpid'];
-  final user = bridge.callMethodVarArgs(
-    identity,
-    'getUser',
-    [bridge.jsifyValue(mpid)!],
-  ) as JSObject;
+  final user = _userForMpid(bridge: bridge, identity: identity, mpid: mpid);
+  if (user == null) {
+    return;
+  }
 
   final consentState = bridge.callMethodVarArgs(user, 'getConsentState', []);
   if (consentState == null || consentState.isUndefinedOrNull) {
@@ -162,11 +176,10 @@ void addCcpaConsentState({
   );
 
   final mpid = arguments['mpid'];
-  final user = bridge.callMethodVarArgs(
-    identity,
-    'getUser',
-    [bridge.jsifyValue(mpid)!],
-  ) as JSObject;
+  final user = _userForMpid(bridge: bridge, identity: identity, mpid: mpid);
+  if (user == null) {
+    return;
+  }
 
   var consentState = bridge.callMethodVarArgs(user, 'getConsentState', []);
   if (consentState == null || consentState.isUndefinedOrNull) {
@@ -187,11 +200,10 @@ void removeCcpaConsentState({
   required Map<dynamic, dynamic> arguments,
 }) {
   final mpid = arguments['mpid'];
-  final user = bridge.callMethodVarArgs(
-    identity,
-    'getUser',
-    [bridge.jsifyValue(mpid)!],
-  ) as JSObject;
+  final user = _userForMpid(bridge: bridge, identity: identity, mpid: mpid);
+  if (user == null) {
+    return;
+  }
 
   final consentState = bridge.callMethodVarArgs(user, 'getConsentState', []);
   if (consentState == null || consentState.isUndefinedOrNull) {

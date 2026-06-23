@@ -97,14 +97,14 @@ class MparticleFlutterSdkWeb {
         return null;
 
       case 'getMPID':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         return user_web.getMpid(
           bridge: _bridge,
           identity: ctx.identityNamespace,
         );
 
       case 'getUserAttributes':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         return user_web.getUserAttributes(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -112,7 +112,7 @@ class MparticleFlutterSdkWeb {
         );
 
       case 'getUserIdentities':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         return user_web.getUserIdentities(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -120,7 +120,7 @@ class MparticleFlutterSdkWeb {
         );
 
       case 'setUserAttribute':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         user_web.setUserAttribute(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -129,7 +129,7 @@ class MparticleFlutterSdkWeb {
         return null;
 
       case 'removeUserAttribute':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         user_web.removeUserAttribute(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -138,7 +138,7 @@ class MparticleFlutterSdkWeb {
         return null;
 
       case 'setUserAttributeArray':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         user_web.setUserAttributeArray(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -147,7 +147,7 @@ class MparticleFlutterSdkWeb {
         return null;
 
       case 'setUserTag':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         user_web.setUserTag(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -159,7 +159,7 @@ class MparticleFlutterSdkWeb {
       case 'login':
       case 'logout':
       case 'modify':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         return identity_web.sendIdentityCall(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -169,7 +169,7 @@ class MparticleFlutterSdkWeb {
         );
 
       case 'aliasUsers':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         await identity_web.aliasUsers(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -180,7 +180,7 @@ class MparticleFlutterSdkWeb {
         return null;
 
       case 'logCommerceEvent':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         return commerce_web.logCommerceEvent(
           bridge: _bridge,
           commerce: ctx.commerceNamespace,
@@ -189,7 +189,7 @@ class MparticleFlutterSdkWeb {
         );
 
       case 'getGDPRConsentState':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         return consent_web.getGdprConsentState(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -197,7 +197,7 @@ class MparticleFlutterSdkWeb {
         );
 
       case 'addGDPRConsentState':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         consent_web.addGdprConsentState(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -207,7 +207,7 @@ class MparticleFlutterSdkWeb {
         return null;
 
       case 'removeGDPRConsentState':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         consent_web.removeGdprConsentState(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -216,7 +216,7 @@ class MparticleFlutterSdkWeb {
         return null;
 
       case 'getCCPAConsentState':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         return consent_web.getCcpaConsentState(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -224,7 +224,7 @@ class MparticleFlutterSdkWeb {
         );
 
       case 'addCCPAConsentState':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         consent_web.addCcpaConsentState(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -234,7 +234,7 @@ class MparticleFlutterSdkWeb {
         return null;
 
       case 'removeCCPAConsentState':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         consent_web.removeCcpaConsentState(
           bridge: _bridge,
           identity: ctx.identityNamespace,
@@ -243,7 +243,7 @@ class MparticleFlutterSdkWeb {
         return null;
 
       case 'roktSelectPlacements':
-        final ctx = MParticleWebContext.forCall();
+        final ctx = MParticleWebContext.forCall(requireReady: true);
         analytics_web.roktSelectPlacements(
           bridge: _bridge,
           rokt: ctx.roktNamespace,

@@ -242,6 +242,20 @@ String buildIdentityResultJson({
       }
   }
 
+  if (httpCode != 200) {
+    resolvedErrors ??= [];
+    if (resolvedErrors.isEmpty) {
+      final fallbackCode =
+          resolvedHttpCode?.toString() ?? httpCode?.toString() ?? 'unknown';
+      resolvedErrors = [
+        {
+          'code': fallbackCode,
+          'message': body?.toString() ?? 'Identity request failed',
+        },
+      ];
+    }
+  }
+
   final identityResult = <String, dynamic>{
     'mpid': mpid,
     'http_code': resolvedHttpCode,

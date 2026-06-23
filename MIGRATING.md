@@ -38,7 +38,7 @@ Web apps: keep the JS snippet in `index.html` and call `await MparticleFlutterSd
 
 The web implementation migrated from `dart:js` to `dart:js_interop` for [Flutter Wasm](https://docs.flutter.dev/platform-integration/web/wasm) compatibility.
 
-1. Regenerate or update `web/index.html` to the Flutter 3.22+ bootstrap (`flutter_bootstrap.js`).
+1. Regenerate or update `web/index.html` to the Flutter 3.44+ bootstrap (`flutter_bootstrap.js`).
 2. Re-merge your mParticle snippet in `<head>` (HTTPS CDN only).
 3. Verify builds:
 
@@ -224,7 +224,7 @@ await mp.rokt.selectShoppableAds(
 
 - **iOS**: proxies to `MParticle.sharedInstance().rokt.selectShoppableAds(...)`.
 - **Android**: the method is exposed for API parity but is a no-op (logs a warning).
-- **Web**: not implemented — calls will throw `MissingPluginException`.
+- **Web**: not implemented — calls throw `PlatformException` with code `Unimplemented`.
 
 Rokt event delivery now uses explicit subscription by identifier through `Rokt.events(...)`. Call `events(identifier, ...)` before `selectPlacements(...)` or `selectShoppableAds(...)` for that identifier.
 

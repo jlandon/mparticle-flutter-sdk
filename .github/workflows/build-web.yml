@@ -37,9 +37,13 @@ jobs:
             echo "Flutter $FLUTTER_VER is below required 3.44.0. Update vars.FLUTTER_VERSION."
             exit 1
           fi
+      - name: Install plugin dependencies
+        run: flutter pub get
       - name: Install example dependencies
         working-directory: example
         run: flutter pub get
+      - name: Test plugin (unit)
+        run: flutter test
       - name: Test example
         working-directory: example
         run: flutter test

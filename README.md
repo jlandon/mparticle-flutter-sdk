@@ -153,6 +153,8 @@ Add the mParticle snippet to your `web/index.html` file as high as possible on t
 </script>
 ```
 
+For **Wasm** builds, use the HTTPS-only loader from [`example/web/index.html`](./example/web/index.html) instead of the protocol-switching snippet above (which can load `http://jssdkcdn` on non-HTTPS pages).
+
 For more help, see the [full Web set up docs](https://docs.mparticle.com/developers/sdk/web/getting-started/#create-an-input).
 
 After the snippet loads, call `await MparticleFlutterSdk.waitUntilReady()` from Dart (do **not** call `initialize()` on web). Optional `timeout` (default 5 seconds) throws `MparticleInitException` with code `MP_INIT_TIMEOUT` when the JS SDK never reports ready.
@@ -172,7 +174,7 @@ Browsers without WasmGC (e.g. iOS WebKit) automatically fall back to the JS buil
 
 Use the modern Flutter web bootstrap (`flutter_bootstrap.js`) in `index.html`. Load the mParticle snippet from **HTTPS only** (`https://jssdkcdns.mparticle.com/...`).
 
-**Web error codes** (`MP_WEB_*`): see [docs/web-architecture.md](./docs/web-architecture.md).
+**Web error codes** (`MP_WEB_*`): see [docs/web-architecture.md](./docs/web-architecture.md). Match `PlatformException.code` against exported `MparticleWebErrorCodes` from `package:mparticle_flutter_sdk.dart`.
 
 **Pre-release smoke:** [docs/web-smoke-checklist.md](./docs/web-smoke-checklist.md).
 
@@ -222,10 +224,12 @@ final mpInstance = await MparticleFlutterSdk.initialize(
 
 `Rokt` is exposed under `mpInstance?.rokt` and supports:
 
-- `Future<void> events(String identifier, void Function(dynamic event) onEvent)` — await before `selectPlacements`
-- `selectPlacements(...)`
+- `Future<void> events(String identifier, void Function(dynamic event) onEvent)` — await before `selectPlacements` (**iOS/Android only**; web throws `Unimplemented`)
+- `selectPlacements(...)` (iOS, Android, **web**)
 - `selectShoppableAds(...)` (iOS implementation; Android no-op for parity; web unsupported)
 - `purchaseFinalized(...)` (iOS)
+
+On **web**, call `selectPlacements` directly — event subscription via `events()` is not available.
 
 Subscribe to events for a placement identifier before selecting placements:
 
@@ -746,7 +750,7 @@ Consent? ccpaConsent = await user?.getCCPAConsentState();
 
 A few methods are currently supported only on iOS/Android SDKs:
 
-- Get the SDK's opt out status
+- Get the SDK's opt out status (read-only; **web supports `setOptOut` only**)
 
   ```dart
   var isOptedOut = await mpInstance?.getOptOut;

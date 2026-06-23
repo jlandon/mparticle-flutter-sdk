@@ -88,6 +88,21 @@ void main() {
       expect(result.startTime, now - aliasMs);
       expect(result.warnOutsideWindow, isFalse);
     });
+
+    test('sets warnOutsideWindow when end precedes clamped start', () {
+      const now = 1700000000000;
+      const aliasDays = 90;
+      const aliasMs = aliasDays * 24 * 60 * 60 * 1000;
+      final result = computeAliasWindow(
+        nowMs: now,
+        aliasMaxWindowDays: aliasDays,
+        startTime: now - aliasMs - 5000,
+        endTime: now - aliasMs - 1000,
+      );
+      expect(result.startTime, now - aliasMs);
+      expect(result.endTime, now - aliasMs - 1000);
+      expect(result.warnOutsideWindow, isTrue);
+    });
   });
 
   group('consent remapping', () {
@@ -185,6 +200,93 @@ void main() {
         identityMethod: 'identify',
       );
       expect(jsonDecode(built), jsonDecode(golden));
+    });
+
+    test('400 with empty errors synthesizes failure envelope', () {
+      final json = jsonDecode(
+        buildIdentityResultJson(
+          httpCode: 400,
+          mpid: null,
+          previousMpid: null,
+          body: null,
+          errors: [],
+          identityMethod: 'identify',
+        ),
+      ) as Map<String, dynamic>;
+      expect(json['http_code'], 400);
+      expect(json['errors'], isNotEmpty);
+    });
+
+    test('synthesized 400 envelope fails sendIdentityRequest parser', () async {
+      final envelope = buildIdentityResultJson(
+        httpCode: 400,
+        mpid: null,
+        previousMpid: null,
+        body: null,
+        errors: [],
+        identityMethod: 'identify',
+      );
+      final channel = MethodChannel('test-400-synth');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (_) async => envelope);
+
+      await expectLater(
+        mobile_identity.sendIdentityRequest(
+          {IdentityType.Email: 'bad@example.com'},
+          channel,
+          'identify',
+        ),
+        throwsA(isA<IdentityAPIErrorResponse>().having(
+          (e) => e.httpCode,
+          'httpCode',
+          400,
+        )),
+      );
+    });
+
+    test('500 normalizes body.errors list', () {
+      final json = jsonDecode(
+        buildIdentityResultJson(
+          httpCode: 500,
+          mpid: null,
+          previousMpid: null,
+          body: {
+            'errors': [
+              {'code': 'E500', 'message': 'server error'},
+            ],
+          },
+          errors: null,
+          identityMethod: 'identify',
+        ),
+      ) as Map<String, dynamic>;
+      expect(json['errors'], [
+        {'code': 'E500', 'message': 'server error'},
+      ]);
+    });
+
+    test('unknown http code synthesizes fallback error', () {
+      final json = jsonDecode(
+        buildIdentityResultJson(
+          httpCode: 403,
+          mpid: null,
+          previousMpid: null,
+          body: 'Forbidden',
+          errors: null,
+          identityMethod: 'identify',
+        ),
+      ) as Map<String, dynamic>;
+      expect(json['errors'], [
+        {'code': '403', 'message': 'Forbidden'},
+      ]);
+    });
+
+    test('timeout JSON matches client error shape', () {
+      final json =
+          jsonDecode(buildIdentityTimeoutJson()) as Map<String, dynamic>;
+      expect(json['http_code'], isNull);
+      expect(json['errors'], [
+        {'code': '-1', 'message': 'Identity callback timed out'},
+      ]);
     });
   });
 

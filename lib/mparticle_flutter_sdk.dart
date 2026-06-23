@@ -26,6 +26,7 @@ import 'identity/alias_request.dart';
 import 'identity/identity_api_result.dart';
 
 export 'package:mparticle_flutter_sdk/src/mparticle_init.dart';
+export 'package:mparticle_flutter_sdk/src/mparticle_web_error_codes.dart';
 
 part './kits/rokt_layout.dart';
 

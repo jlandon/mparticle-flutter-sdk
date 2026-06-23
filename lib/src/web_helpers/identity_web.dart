@@ -18,6 +18,7 @@ Future<String> invokeIdentityCallback({
   required JSObject identity,
   required String identityMethod,
   required Map<String, dynamic> identityRequest,
+  Duration timeout = _identityCallbackTimeout,
 }) {
   final completer = Completer<String>();
   JSFunction? callbackRef;
@@ -28,6 +29,20 @@ Future<String> invokeIdentityCallback({
       return;
     }
     timer?.cancel();
+
+    if (resultAny.isUndefinedOrNull) {
+      completer.complete(
+        buildIdentityResultJson(
+          httpCode: -1,
+          mpid: null,
+          previousMpid: null,
+          body: 'Identity callback returned no result',
+          errors: null,
+          identityMethod: identityMethod,
+        ),
+      );
+      return;
+    }
 
     final result = resultAny as JSObject;
     final httpCode = _readHttpCode(bridge, result);
@@ -85,7 +100,7 @@ Future<String> invokeIdentityCallback({
     completeWithResult(result);
   }).toJS;
 
-  timer = Timer(_identityCallbackTimeout, onTimeout);
+  timer = Timer(timeout, onTimeout);
 
   bridge.callMethodVarArgs(
     identity,
@@ -177,11 +192,16 @@ Map<String, dynamic> createAliasRequest({
     endTime: endTime,
   );
 
+  var resolvedEndTime = window.endTime;
+  if (window.warnOutsideWindow && resolvedEndTime < window.startTime) {
+    resolvedEndTime = window.startTime;
+  }
+
   return {
     'destinationMpid': destinationMpid,
     'sourceMpid': sourceMpid,
     'startTime': window.startTime,
-    'endTime': window.endTime,
+    'endTime': resolvedEndTime,
   };
 }
 

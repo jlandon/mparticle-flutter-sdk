@@ -1033,4 +1033,14 @@ void main() {
           }));
     });
   });
+
+  group('MparticleWebErrorCodes', () {
+    test('exports stable web error codes from public API', () {
+      expect(MparticleWebErrorCodes.snippetMissing, 'MP_WEB_SNIPPET_MISSING');
+      expect(MparticleWebErrorCodes.notReady, 'MP_WEB_NOT_READY');
+      expect(MparticleWebErrorCodes.interopFailed, 'MP_WEB_INTEROP_FAILED');
+      expect(MparticleWebErrorCodes.identityUnavailable,
+          'MP_WEB_IDENTITY_UNAVAILABLE');
+    });
+  });
 }
