@@ -21,6 +21,13 @@ permissions:
   pull-requests: write
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  build-web:
+    needs: test
+    uses: ./.github/workflows/build-web.yml
+
   publish-draft-release:
     runs-on: ubuntu-latest
     steps:

@@ -34,7 +34,25 @@ await MparticleFlutterSdk.initialize(
 
 Web apps: keep the JS snippet in `index.html` and call `await MparticleFlutterSdk.waitUntilReady()`.
 
-### Handle initialization failures
+### Web → Wasm (3.0+)
+
+The web implementation migrated from `dart:js` to `dart:js_interop` for [Flutter Wasm](https://docs.flutter.dev/platform-integration/web/wasm) compatibility.
+
+1. Regenerate or update `web/index.html` to the Flutter 3.22+ bootstrap (`flutter_bootstrap.js`).
+2. Re-merge your mParticle snippet in `<head>` (HTTPS CDN only).
+3. Verify builds:
+
+```bash
+cd example   # or your app
+flutter build web
+flutter build web --wasm
+```
+
+4. Run the [manual smoke checklist](./docs/web-smoke-checklist.md) under JS and Wasm.
+
+**Additive behavior:** identity JS callbacks time out after 60 seconds with a structured `-1` client error JSON envelope.
+
+See [docs/web-architecture.md](./docs/web-architecture.md) for wire contracts and `MP_WEB_*` error codes.
 
 2.x native init could fail silently when using deprecated `getInstance()` (returns `null`). 3.0 `initialize()` throws typed exceptions:
 

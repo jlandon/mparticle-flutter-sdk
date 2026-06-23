@@ -1,4 +1,5 @@
 import 'dart:convert';
+// Web identity wire mapping lives in lib/src/web_helpers/web_identity_helpers.dart.
 import 'package:flutter/services.dart';
 import 'package:mparticle_flutter_sdk/identity/identity_api_error_response.dart';
 import 'package:mparticle_flutter_sdk/identity/identity_type.dart';
@@ -24,7 +25,13 @@ sendIdentityRequest(Map<IdentityType, String> identitiesByEnum,
     IdentityClientErrorCodes? clientErrorCode;
 
     String platform = response['platform'];
-    if (httpCode < 200) {
+    if (httpCode == null && platform == 'web') {
+      final errors = response['errors'] as List?;
+      if (errors != null && errors.isNotEmpty && errors.first is Map) {
+        httpCode = int.tryParse(errors.first['code']?.toString() ?? '');
+      }
+    }
+    if (httpCode != null && httpCode < 200) {
       switch (httpCode) {
         case -1: // web and android both have a -1 client side error code
           if (platform == 'web') {

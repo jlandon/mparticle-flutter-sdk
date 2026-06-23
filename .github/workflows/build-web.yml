@@ -1,3 +1,8 @@
+# Build Web
+#
+# Prerequisite: repository variable vars.FLUTTER_VERSION must be >= 3.44.0
+# (matches pubspec minimum for Wasm-compatible interop).
+
 name: Build Web
 
 on:
@@ -22,23 +27,47 @@ jobs:
           flutter-version: ${{ vars.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Verify Flutter version floor (>= 3.44.0)
+        run: |
+          set -euo pipefail
+          FLUTTER_VER=$(flutter --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          echo "Detected Flutter $FLUTTER_VER"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$FLUTTER_VER"
+          if [ "$MAJOR" -lt 3 ] || { [ "$MAJOR" -eq 3 ] && [ "$MINOR" -lt 44 ]; }; then
+            echo "Flutter $FLUTTER_VER is below required 3.44.0. Update vars.FLUTTER_VERSION."
+            exit 1
+          fi
       - name: Install example dependencies
         working-directory: example
         run: flutter pub get
       - name: Test example
         working-directory: example
         run: flutter test
-      - name: Build example web
+      - name: Build example web (JS fallback)
         working-directory: example
         run: flutter build web
-      - name: Check if example web exists
+      - name: Verify JS web artifacts
         working-directory: example
         run: |
           set -e
-          if [ ! -f build/web/flutter.js ]; then
-            echo "Web build not found!"
-            exit 1
-          fi
+          test -f build/web/main.dart.js
+          test -f build/web/flutter_bootstrap.js || test -f build/web/flutter.js
+      - name: Build example web (Wasm)
+        working-directory: example
+        run: flutter build web --wasm
+      - name: Verify Wasm web artifacts
+        working-directory: example
+        run: |
+          set -e
+          test -f build/web/main.dart.wasm
+          test -f build/web/main.dart.js
+          test -f build/web/flutter_bootstrap.js || test -f build/web/flutter.js
+      - name: Upload web build artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@6.0.0
+        with:
+          name: web-build-debug
+          path: example/build/web/
       - name: Cleanup
         if: ${{ always() }}
         working-directory: example

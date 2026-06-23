@@ -1,0 +1,11 @@
+{
+  "mpid": null,
+  "http_code": 400,
+  "platform": "web",
+  "errors": [
+    {
+      "code": "INVALID",
+      "message": "Invalid identity"
+    }
+  ]
+}

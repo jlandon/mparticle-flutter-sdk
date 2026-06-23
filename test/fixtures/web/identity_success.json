@@ -1,0 +1,6 @@
+{
+  "mpid": "test-mpid-123",
+  "http_code": 200,
+  "platform": "web",
+  "previous_mpid": "prev-mpid-456"
+}

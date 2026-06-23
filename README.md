@@ -159,7 +159,41 @@ After the snippet loads, call `await MparticleFlutterSdk.waitUntilReady()` from 
 
 On mobile, `waitUntilReady()` throws `StateError` — use `initialize()` instead.
 
-## Usage
+#### WebAssembly (Wasm)
+
+The web plugin uses Wasm-compatible JS interop (`dart:js_interop`). Requires Flutter **>= 3.44.0** (see `pubspec.yaml`).
+
+```bash
+flutter run -d chrome --wasm
+flutter build web --wasm
+```
+
+Browsers without WasmGC (e.g. iOS WebKit) automatically fall back to the JS build output. Optional multi-threaded Wasm rendering requires COOP/COEP headers — see [Flutter Wasm docs](https://docs.flutter.dev/platform-integration/web/wasm).
+
+Use the modern Flutter web bootstrap (`flutter_bootstrap.js`) in `index.html`. Load the mParticle snippet from **HTTPS only** (`https://jssdkcdns.mparticle.com/...`).
+
+**Web error codes** (`MP_WEB_*`): see [docs/web-architecture.md](./docs/web-architecture.md).
+
+**Pre-release smoke:** [docs/web-smoke-checklist.md](./docs/web-smoke-checklist.md).
+
+Web uses the API key in the JS snippet only — no `MP_API_SECRET` / `--dart-define` secret on web.
+
+## Developing this plugin
+
+Prerequisites: Flutter >= 3.44.0.
+
+```bash
+flutter pub get
+flutter test
+dart analyze
+cd example && flutter pub get && flutter test
+cd example && flutter build web
+cd example && flutter build web --wasm
+```
+
+Run both JS and Wasm builds before opening a PR that touches `lib/**/web*` or `lib/mparticle_flutter_sdk_web.dart`.
+
+Maintainers: set repository variable `FLUTTER_VERSION` to >= 3.44.0 for CI web/Wasm gates.
 
 Each of our Dart methods is mapped to an underlying mParticle SDK at the platform level. Note that per Dart's [documentation](https://flutter.dev/docs/development/platform-integration/platform-channels#architecture, calling into platform specific code is asynchronous to ensure the user interface remains responsive. In your code, you can swap usage between `async` and `then` in accordance to your app's requirements.
 

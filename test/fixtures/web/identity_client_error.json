@@ -1,0 +1,11 @@
+{
+  "mpid": null,
+  "http_code": null,
+  "platform": "web",
+  "errors": [
+    {
+      "code": "-1",
+      "message": "No connection"
+    }
+  ]
+}

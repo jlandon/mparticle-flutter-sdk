@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - iOS `InitializeOptionsParser` SPM target with unit tests; Android URL validation unit tests wired into CI.
+- Web: Wasm-compatible JS interop migration (`dart:js` → `dart:js_interop`).
+- Web: `MP_WEB_*` platform error codes for snippet, readiness, and namespace failures.
+- Web: identity callback 60-second timeout (structured `-1` JSON envelope).
+
+### Changed
+
+- Web: host apps may need `index.html` updated to Flutter 3.22+ bootstrap for Wasm builds.
+
+See [MIGRATING.md](./MIGRATING.md#web--wasm-30) and [docs/web-smoke-checklist.md](./docs/web-smoke-checklist.md).
 
 ## [3.0.0-beta.1] - 2026-06-18
 
