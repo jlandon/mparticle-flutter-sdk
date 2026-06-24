@@ -535,7 +535,9 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
       return
     }
 
-    when (val baseUrlValidation = InitializeOptionsParser.validateCustomBaseUrl(call.argument("customBaseUrl"))) {
+    val baseUrlValidation =
+        InitializeOptionsParser.validateCustomBaseUrl(call.argument("customBaseUrl"))
+    when (baseUrlValidation) {
       is CustomBaseUrlValidation.Invalid -> {
         result.error("MP_INIT_INVALID_BASE_URL", baseUrlValidation.reason, null)
         return
