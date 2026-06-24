@@ -1,5 +1,8 @@
 import Flutter
 import UIKit
+#if canImport(InitializeOptionsParser)
+import InitializeOptionsParser
+#endif
 import mParticle_Apple_SDK
 import RoktContracts
 import RoktPaymentExtension
@@ -33,7 +36,7 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
     case "initialize":
         handleInitialize(call: call, result: result)
     case "isInitialized":
-        result(SwiftMparticleFlutterSdkPlugin.sdkStarted)
+        result(MParticle.sharedInstance().initialized)
     case "getAppName":
         result(Bundle.main.infoDictionary?[kCFBundleNameKey as String] as? String)
     case "getOptOut":
@@ -599,6 +602,10 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
     }
   }
 
+  private static func isNativeSdkRunning() -> Bool {
+    MParticle.sharedInstance().initialized
+  }
+
   private func handleInitialize(call: FlutterMethodCall, result: @escaping FlutterResult) {
     guard let args = call.arguments as? [String: Any],
           let apiKey = (args["apiKey"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -616,6 +623,25 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
       }
     }
 
+    var roktPaymentExtension: RoktPaymentExtension?
+    if let iosOptions = args["ios"] as? [String: Any],
+       let payment = iosOptions["roktPaymentExtension"] as? [String: Any],
+       let merchantId = payment["applePayMerchantId"] as? String {
+      let urlScheme = payment["urlScheme"] as? String
+      guard let extensionInstance = RoktPaymentExtension(
+        applePayMerchantId: merchantId,
+        urlScheme: urlScheme
+      ) else {
+        result(FlutterError(
+          code: "MP_INIT_INVALID_OPTIONS",
+          message: "Failed to create Rokt payment extension",
+          details: nil
+        ))
+        return
+      }
+      roktPaymentExtension = extensionInstance
+    }
+
     SwiftMparticleFlutterSdkPlugin.initLock.lock()
     defer { SwiftMparticleFlutterSdkPlugin.initLock.unlock() }
 
@@ -628,30 +654,34 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
       return
     }
 
-    if MParticle.sharedInstance().identity.currentUser != nil {
-      result(FlutterError(
-        code: "MP_INIT_ALREADY_STARTED",
-        message: "mParticle already initialized natively; remove AppDelegate start before Dart initialize()",
-        details: nil
-      ))
+    if SwiftMparticleFlutterSdkPlugin.isNativeSdkRunning() {
+      if SwiftMparticleFlutterSdkPlugin.initializedApiKey == apiKey {
+        result(nil)
+        return
+      }
+      let message: String
+      if SwiftMparticleFlutterSdkPlugin.initializedApiKey == nil {
+        message = "mParticle already initialized natively; remove AppDelegate start before Dart initialize()"
+      } else {
+        message = "mParticle already initialized"
+      }
+      result(FlutterError(code: "MP_INIT_ALREADY_STARTED", message: message, details: nil))
       return
     }
 
     let options = MParticleOptions(key: apiKey, secret: apiSecret)
 
-    if let logLevelIndex = args["logLevel"] as? Int,
-       let logLevel = MPILogLevel(rawValue: UInt(logLevelIndex)) {
-      options.logLevel = logLevel
+    if let logLevelIndex = args["logLevel"] as? Int {
+      let rawValue = InitializeOptionsParser.parseLogLevelRawValue(logLevelIndex)
+      if let logLevel = MPILogLevel(rawValue: rawValue) {
+        options.logLevel = logLevel
+      }
     }
 
     if let envIndex = args["environment"] as? Int {
-      switch envIndex {
-      case 1:
-        options.environment = .development
-      case 2:
-        options.environment = .production
-      default:
-        options.environment = .autoDetect
+      let rawValue = InitializeOptionsParser.parseEnvironmentRawValue(envIndex)
+      if let environment = MPEnvironment(rawValue: rawValue) {
+        options.environment = environment
       }
     }
 
@@ -677,28 +707,16 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
       options.identifyRequest = createIdentityRequest(identitiesKeyedOnType: identityMap)
     }
 
-    do {
-      MParticle.sharedInstance().start(with: options)
-      MParticle._setWrapperSdk_internal(MPWrapperSdk.flutter, version: "")
+    MParticle.sharedInstance().start(with: options)
+    MParticle._setWrapperSdk_internal(MPWrapperSdk.flutter, version: "")
 
-      if let iosOptions = args["ios"] as? [String: Any],
-         let payment = iosOptions["roktPaymentExtension"] as? [String: Any],
-         let merchantId = payment["applePayMerchantId"] as? String {
-        let urlScheme = payment["urlScheme"] as? String
-        if let paymentExtension = RoktPaymentExtension(
-          applePayMerchantId: merchantId,
-          urlScheme: urlScheme
-        ) {
-          MParticle.sharedInstance().rokt.registerPaymentExtension(paymentExtension)
-        }
-      }
-
-      SwiftMparticleFlutterSdkPlugin.initializedApiKey = apiKey
-      SwiftMparticleFlutterSdkPlugin.sdkStarted = true
-      result(nil)
-    } catch {
-      result(FlutterError(code: "MP_INIT_INVALID_OPTIONS", message: "Failed to initialize mParticle", details: nil))
+    if let paymentExtension = roktPaymentExtension {
+      MParticle.sharedInstance().rokt.registerPaymentExtension(paymentExtension)
     }
+
+    SwiftMparticleFlutterSdkPlugin.initializedApiKey = apiKey
+    SwiftMparticleFlutterSdkPlugin.sdkStarted = true
+    result(nil)
   }
 
   private func registerPartnerFonts(_ typefaces: Dictionary<String, String>) {

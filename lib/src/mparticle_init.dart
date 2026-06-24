@@ -123,12 +123,23 @@ class MparticleOptions {
       );
     }
 
-    if (customBaseUrl != null &&
-        !customBaseUrl!.trim().toLowerCase().startsWith('https://')) {
-      throw MparticleInitException(
-        code: MparticleInitErrorCodes.invalidBaseUrl,
-        message: 'customBaseUrl must use the https:// scheme.',
-      );
+    if (customBaseUrl != null) {
+      final trimmed = customBaseUrl!.trim();
+      if (trimmed.isNotEmpty) {
+        if (!trimmed.toLowerCase().startsWith('https://')) {
+          throw MparticleInitException(
+            code: MparticleInitErrorCodes.invalidBaseUrl,
+            message: 'customBaseUrl must use the https:// scheme.',
+          );
+        }
+        final uri = Uri.tryParse(trimmed);
+        if (uri == null || uri.host.isEmpty) {
+          throw MparticleInitException(
+            code: MparticleInitErrorCodes.invalidBaseUrl,
+            message: 'customBaseUrl is not a valid https URL.',
+          );
+        }
+      }
     }
 
     final urlScheme = ios?.roktPaymentExtension?.urlScheme;
@@ -228,10 +239,11 @@ class MparticleInitException implements Exception {
 /// apiKey after the SDK has already started.
 class MparticleAlreadyInitializedException extends MparticleInitException {
   /// Creates an already-initialized exception.
-  MparticleAlreadyInitializedException()
+  MparticleAlreadyInitializedException({String? message})
       : super(
           code: MparticleInitErrorCodes.alreadyStarted,
-          message: 'mParticle is already initialized with a different apiKey.',
+          message: message ??
+              'mParticle is already initialized with a different apiKey.',
         );
 }
 
@@ -240,7 +252,12 @@ MparticleInitException mapInitExceptionFromPlatform(
     PlatformException exception) {
   final code = exception.code;
   if (code == MparticleInitErrorCodes.alreadyStarted) {
-    return MparticleAlreadyInitializedException();
+    final nativeMessage = exception.message?.trim();
+    return MparticleAlreadyInitializedException(
+      message: nativeMessage != null && nativeMessage.isNotEmpty
+          ? nativeMessage
+          : null,
+    );
   }
   final nativeMessage = exception.message?.trim();
   return MparticleInitException(

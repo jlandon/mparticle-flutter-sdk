@@ -2,6 +2,7 @@ package com.mparticle.mparticle_flutter_sdk
 
 import com.mparticle.MParticle
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class InitializeWireFormatTest {
@@ -30,5 +31,35 @@ class InitializeWireFormatTest {
     @Test
     fun parseEnvironment_unknownIndexDefaultsToAutoDetect() {
         assertEquals(MParticle.Environment.AutoDetect, InitializeOptionsParser.parseEnvironment(99))
+    }
+
+    @Test
+    fun validateCustomBaseUrl_acceptsValidHttpsUrl() {
+        val result = InitializeOptionsParser.validateCustomBaseUrl("https://cdn.example.com")
+        assertTrue(result is CustomBaseUrlValidation.Valid)
+        assertEquals("https://cdn.example.com", (result as CustomBaseUrlValidation.Valid).url)
+    }
+
+    @Test
+    fun validateCustomBaseUrl_absentForNullOrBlank() {
+        assertTrue(InitializeOptionsParser.validateCustomBaseUrl(null) is CustomBaseUrlValidation.Absent)
+        assertTrue(InitializeOptionsParser.validateCustomBaseUrl("  ") is CustomBaseUrlValidation.Absent)
+    }
+
+    @Test
+    fun validateCustomBaseUrl_rejectsNonHttps() {
+        val result = InitializeOptionsParser.validateCustomBaseUrl("http://insecure.example")
+        assertTrue(result is CustomBaseUrlValidation.Invalid)
+        assertEquals("customBaseUrl must use https://", (result as CustomBaseUrlValidation.Invalid).reason)
+    }
+
+    @Test
+    fun validateCustomBaseUrl_rejectsHttpsWithoutHost() {
+        val result = InitializeOptionsParser.validateCustomBaseUrl("https://")
+        assertTrue(result is CustomBaseUrlValidation.Invalid)
+        assertEquals(
+            "customBaseUrl is not a valid https URL",
+            (result as CustomBaseUrlValidation.Invalid).reason,
+        )
     }
 }

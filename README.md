@@ -103,8 +103,8 @@ Requires **Flutter ≥ 3.44.0** for Swift Package Manager support on iOS.
 ```dart
 try {
   await MparticleFlutterSdk.initialize(options);
-} on MparticleAlreadyInitializedException {
-  // Different apiKey after successful init
+} on MparticleAlreadyInitializedException catch (e) {
+  // Second init, legacy native init, or hot restart — e.message has native detail
 } on MparticleInitException catch (e) {
   print('Init failed: ${e.code} — ${e.message}');
 }
@@ -114,6 +114,9 @@ try {
 
 - `initTimeout` — Dart-only guard around the native init call (default 5 seconds; clamped to 1–30 seconds). Not sent over the method channel.
 - `bootstrapIdentityRequest` — optional startup identify (max **10** identities, max **256** characters per value). Adds latency before `runApp()`; prefer `identity.identify()` after startup when possible.
+- `logLevel` — on iOS, `MparticleLogLevel.info` maps to native Debug because the Apple SDK has no INFO level; `info` and `debug` both use Debug on iOS.
+- `customBaseUrl` — must be HTTPS with a valid host (validated in Dart and on native platforms).
+- **Hot restart:** if `initialize()` returns `MP_INIT_ALREADY_STARTED` after a hot restart, perform a full app restart — the native SDK remains initialized while Dart state was reset.
 
 See [MIGRATING.md](./MIGRATING.md) for the 2.x → 3.0 upgrade guide.
 

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- iOS: map Dart log level wire indices to `MPILogLevel` correctly (`verbose` no longer silently ignored; `info` maps to native Debug).
+- iOS: detect existing native SDK via `MParticle.initialized` (replacing `currentUser` check); `isInitialized` reflects native SDK state.
+- iOS: fail initialization when Rokt payment extension cannot be created; remove ineffective `do/catch` around `start(with:)`.
+- Android: validate `customBaseUrl` host before SDK start (parity with iOS).
+- Dart: validate `customBaseUrl` host at `MparticleOptions.validate()`; preserve native messages on `MparticleAlreadyInitializedException`.
+
+### Added
+
+- iOS `InitializeOptionsParser` SPM target with unit tests; Android URL validation unit tests wired into CI.
+
 ## [3.0.0-beta.1] - 2026-06-18
 
 ### Added

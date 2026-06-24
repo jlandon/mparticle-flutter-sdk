@@ -26,6 +26,19 @@ jobs:
         run: flutter pub get
       - name: Run tests
         run: flutter test
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - name: Install example dependencies for Android unit tests
+        working-directory: example
+        run: flutter pub get
+      - name: Run Android plugin unit tests
+        working-directory: example/android
+        run: |
+          ./gradlew projects
+          ./gradlew :mparticle_flutter_sdk:testDebugUnitTest
       - name: Cleanup
         if: ${{ always() }}
         run: |

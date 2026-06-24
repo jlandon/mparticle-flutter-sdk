@@ -103,6 +103,51 @@ void main() {
       );
     });
 
+    test('customBaseUrl without host throws MP_INIT_INVALID_BASE_URL', () {
+      expect(
+        () => MparticleOptions(
+          apiKey: 'key',
+          apiSecret: 'secret',
+          customBaseUrl: 'https://',
+        ).validate(),
+        throwsA(isA<MparticleInitException>().having(
+          (e) => e.code,
+          'code',
+          MparticleInitErrorCodes.invalidBaseUrl,
+        )),
+      );
+    });
+
+    test('valid customBaseUrl passes validate', () {
+      expect(
+        () => MparticleOptions(
+          apiKey: 'key',
+          apiSecret: 'secret',
+          customBaseUrl: 'https://cdn.example.com',
+        ).validate(),
+        returnsNormally,
+      );
+    });
+
+    test('logLevel wire indices serialize for non-default levels', () {
+      expect(
+        MparticleOptions(
+          apiKey: 'key',
+          apiSecret: 'secret',
+          logLevel: MparticleLogLevel.verbose,
+        ).toJson()['logLevel'],
+        MparticleLogLevel.verbose.index,
+      );
+      expect(
+        MparticleOptions(
+          apiKey: 'key',
+          apiSecret: 'secret',
+          logLevel: MparticleLogLevel.info,
+        ).toJson()['logLevel'],
+        MparticleLogLevel.info.index,
+      );
+    });
+
     test('second initialize with same apiKey returns same instance', () async {
       var initCallCount = 0;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -421,7 +466,41 @@ void main() {
         MparticleFlutterSdk.initialize(
           MparticleOptions(apiKey: 'key', apiSecret: 'secret'),
         ),
-        throwsA(isA<MparticleAlreadyInitializedException>()),
+        throwsA(isA<MparticleAlreadyInitializedException>().having(
+          (e) => e.message,
+          'message',
+          'already started',
+        )),
+      );
+    });
+
+    test('native init conflict preserves AppDelegate migration message',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        channel,
+        (MethodCall call) async {
+          if (call.method == 'initialize') {
+            throw PlatformException(
+              code: MparticleInitErrorCodes.alreadyStarted,
+              message:
+                  'mParticle already initialized natively; remove AppDelegate start before Dart initialize()',
+            );
+          }
+          return null;
+        },
+      );
+
+      MparticleFlutterSdk.resetForTest();
+      await expectLater(
+        MparticleFlutterSdk.initialize(
+          MparticleOptions(apiKey: 'key', apiSecret: 'secret'),
+        ),
+        throwsA(isA<MparticleAlreadyInitializedException>().having(
+          (e) => e.message,
+          'message',
+          contains('AppDelegate'),
+        )),
       );
     });
   });

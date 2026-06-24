@@ -20,6 +20,7 @@ let package = Package(
     ],
     dependencies: [
         .package(name: "FlutterFramework", path: "../FlutterFramework"),
+        .package(name: "InitializeOptionsParserPackage", path: "../InitializeOptionsParserPackage"),
         .package(url: "https://github.com/mParticle/mparticle-apple-sdk", from: "9.2.0"),
         .package(url: "https://github.com/mparticle-integrations/mp-apple-integration-rokt", from: "9.0.0"),
         .package(url: "https://github.com/ROKT/rokt-payment-extension-ios", from: "2.0.0"),
@@ -28,6 +29,7 @@ let package = Package(
         .target(
             name: "mparticle_flutter_sdk",
             dependencies: [
+                .product(name: "InitializeOptionsParser", package: "InitializeOptionsParserPackage"),
                 .product(name: "FlutterFramework", package: "FlutterFramework"),
                 .product(name: "mParticle-Apple-SDK", package: "mparticle-apple-sdk"),
                 .product(name: "mParticle-Rokt", package: "mp-apple-integration-rokt"),

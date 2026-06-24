@@ -535,10 +535,12 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
       return
     }
 
-    val customBaseUrl = call.argument<String>("customBaseUrl")?.trim()
-    if (customBaseUrl != null && !customBaseUrl.startsWith("https://", ignoreCase = true)) {
-      result.error("MP_INIT_INVALID_BASE_URL", "customBaseUrl must use https://", null)
-      return
+    when (val baseUrlValidation = InitializeOptionsParser.validateCustomBaseUrl(call.argument("customBaseUrl"))) {
+      is CustomBaseUrlValidation.Invalid -> {
+        result.error("MP_INIT_INVALID_BASE_URL", baseUrlValidation.reason, null)
+        return
+      }
+      else -> Unit
     }
 
     synchronized(initLock) {
@@ -575,8 +577,9 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
           builder.environment(InitializeOptionsParser.parseEnvironment(envIndex))
         }
 
-        customBaseUrl?.let {
-          builder.networkOptions(NetworkOptions.withNetworkOptions(it))
+        val validatedBaseUrl = baseUrlValidation as? CustomBaseUrlValidation.Valid
+        validatedBaseUrl?.let {
+          builder.networkOptions(NetworkOptions.withNetworkOptions(it.url))
         }
 
         val bootstrap = call.argument<Map<String, Any>>("bootstrapIdentityRequest")

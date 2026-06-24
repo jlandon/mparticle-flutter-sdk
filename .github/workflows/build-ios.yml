@@ -22,6 +22,9 @@ jobs:
           flutter-version: ${{ vars.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Run iOS InitializeOptionsParser unit tests
+        working-directory: ios/InitializeOptionsParserPackage
+        run: swift test
       - name: Pin CocoaPods package manager (pre-SPM migration guardrail)
         run: flutter config --no-enable-swift-package-manager
       - name: Install example dependencies

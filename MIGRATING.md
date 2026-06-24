@@ -16,7 +16,9 @@ Version 3.0.0 introduces Dart-only mobile initialization and Swift Package Manag
 2. Delete `MParticle.start(with:)` from iOS `AppDelegate`.
 3. Remove duplicate mParticle Gradle and Podfile dependencies from your app.
 
-**Partial migration is unsupported.** If native `MParticle.start()` remains, Dart `initialize()` returns `MP_INIT_ALREADY_STARTED` (Android when `MParticle.getInstance()` is non-null; iOS when a current user session is already present). Remove all native start paths before calling Dart init.
+**Partial migration is unsupported.** If native `MParticle.start()` remains, Dart `initialize()` returns `MP_INIT_ALREADY_STARTED` (Android when `MParticle.getInstance()` is non-null; iOS when `MParticle.initialized` is `true`). Remove all native start paths before calling Dart init.
+
+**Flutter hot restart:** The native SDK stays initialized across hot restart, but Dart/plugin static state resets. Re-calling `initialize()` returns `MP_INIT_ALREADY_STARTED` even with the same credentials — perform a full app restart instead.
 
 ### Add Dart initialization
 
@@ -39,8 +41,8 @@ Web apps: keep the JS snippet in `index.html` and call `await MparticleFlutterSd
 ```dart
 try {
   await MparticleFlutterSdk.initialize(options);
-} on MparticleAlreadyInitializedException {
-  // Second call with a different apiKey
+} on MparticleAlreadyInitializedException catch (e) {
+  // Second call, legacy native init, or hot restart — e.message has native detail
 } on MparticleInitException catch (e) {
   // e.code is a stable MP_INIT_* string; e.message includes native detail when available
 }
@@ -57,15 +59,15 @@ try {
 
 ### Map native options to MparticleOptions
 
-| 2.x native setting                   | 3.0 Dart field                                                 |
-| ------------------------------------ | -------------------------------------------------------------- |
-| API key / secret                     | `apiKey`, `apiSecret`                                          |
-| Log level                            | `logLevel` (`MparticleLogLevel`)                               |
-| Environment                          | `environment` (`MparticleEnvironment`)                         |
-| CNAME / custom base URL              | `customBaseUrl` (HTTPS)                                        |
-| Startup identify request             | `bootstrapIdentityRequest` (max 10 identities, 256 chars each) |
-| Rokt payment extension (AppDelegate) | `ios.roktPaymentExtension`                                     |
-| Init watchdog                        | `initTimeout` (Dart-only, default 5s, clamped 1–30s)           |
+| 2.x native setting                   | 3.0 Dart field                                                                                                       |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| API key / secret                     | `apiKey`, `apiSecret`                                                                                                |
+| Log level                            | `logLevel` (`MparticleLogLevel`) — on iOS, `info` and `debug` both map to native Debug (Apple SDK has no INFO level) |
+| Environment                          | `environment` (`MparticleEnvironment`)                                                                               |
+| CNAME / custom base URL              | `customBaseUrl` (HTTPS)                                                                                              |
+| Startup identify request             | `bootstrapIdentityRequest` (max 10 identities, 256 chars each)                                                       |
+| Rokt payment extension (AppDelegate) | `ios.roktPaymentExtension`                                                                                           |
+| Init watchdog                        | `initTimeout` (Dart-only, default 5s, clamped 1–30s)                                                                 |
 
 ### Replace `getInstance()`
 
@@ -80,7 +82,7 @@ try {
 
 | Platform | Pre-3.0                          | 3.0+ channel behavior                             |
 | -------- | -------------------------------- | ------------------------------------------------- |
-| iOS      | always `true` (1.1.1 regression) | `true` only after Dart `initialize()` completes   |
+| iOS      | always `true` (1.1.1 regression) | `true` when `MParticle.initialized` is `true`     |
 | Android  | reflects native SDK              | `true` when `MParticle.getInstance()` is non-null |
 | Web      | JS store flag                    | `true` when web snippet reports ready             |
 
@@ -88,7 +90,7 @@ After removing native init, use Dart `initialize()` on mobile — do not rely on
 
 ### iOS `isInitialized` behavior (summary)
 
-Pre-init calls now return `false` on iOS when using Dart-only init (2.x always returned `true`).
+Returns `true` when the native Apple SDK reports initialized (`MParticle.initialized`), aligned with Android `getInstance()` semantics. Legacy native-init apps without Dart `initialize()` will see `true` once the SDK has started.
 
 ### Flutter version requirement
 
