@@ -31,6 +31,10 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
     registrar.register(instance.roktLayoutFactory, withId: SwiftMparticleFlutterSdkPlugin.VIEW_CALL_DELEGATE)
   }
 
+  private func invalidArguments(_ method: String, result: @escaping FlutterResult) {
+    result(FlutterError(code: "INVALID_ARGUMENTS", message: "Invalid \(method) arguments", details: nil))
+  }
+
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "initialize":
@@ -46,15 +50,16 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
            let kitId = callArguments["kitId"] as? NSNumber {
             result(MParticle.sharedInstance().isKitActive(kitId))
         } else {
-            print("Incorrect argument for \(call.method) iOS method")
+            invalidArguments(call.method, result: result)
         }
     case "logError":
         if let callArguments = call.arguments as? [String: Any],
            let eventName = callArguments["eventName"] as? String {
             let customAttributes = callArguments["customAttributes"] as? [String: Any]
             MParticle.sharedInstance().logError(eventName, eventInfo: customAttributes)
+            result(true)
         } else {
-            print("Incorrect argument for \(call.method) iOS method")
+            invalidArguments(call.method, result: result)
         }
     case "logEvent":
         if let callArguments = call.arguments as? [String: Any],
@@ -73,16 +78,18 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
                 event.shouldUploadEvent = shouldUploadEvent
             }
             MParticle.sharedInstance().logEvent(event)
+            result(true)
         } else {
-            print("Incorrect argument for \(call.method) iOS method")
+            invalidArguments(call.method, result: result)
         }
     case "logPushRegistration":
         if let callArguments = call.arguments as? [String: Any],
             let iosToken = callArguments["pushToken"] as? String,
             let iosTokenData = iosToken.data(using: .utf8) {
              MParticle.sharedInstance().pushNotificationToken = iosTokenData
+             result(true)
         } else {
-            print("Incorrect argument for \(call.method) iOS method")
+            invalidArguments(call.method, result: result)
         }
     case "logScreenEvent":
         if let callArguments = call.arguments as? [String: Any],
@@ -98,8 +105,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
             }
 
             MParticle.sharedInstance().logScreenEvent(event)
+            result(true)
         } else {
-            print("Incorrect argument for \(call.method) iOS method")
+            invalidArguments(call.method, result: result)
         }
     case "setATTStatus":
         if let callArguments = call.arguments as? [String: Any],
@@ -107,18 +115,21 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
            let attStatus = MPATTAuthorizationStatus(rawValue:UInt(truncating: rawATTStatus)) {
             let timestamp = callArguments["timestampInMillis"] as? NSNumber
             MParticle.sharedInstance().setATTStatus(attStatus, withATTStatusTimestampMillis: timestamp)
+            result(true)
         } else {
-            print("Incorrect argument for \(call.method) iOS method")
+            invalidArguments(call.method, result: result)
         }
     case "setOptOut":
         if let callArguments = call.arguments as? [String: Any],
            let optOutVal = callArguments["optOutBoolean"] as? Bool {
             MParticle.sharedInstance().optOut = optOutVal
+            result(true)
         } else {
-            print("Incorrect argument for \(call.method) iOS method")
+            invalidArguments(call.method, result: result)
         }
     case "upload":
         MParticle.sharedInstance().upload()
+        result(true)
     // identity methods:
     case "identify":
       if let callArguments = call.arguments as? [String: Any],
@@ -127,8 +138,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
           MParticle.sharedInstance().identity.identify(identityRequest, completion: {(identityResult: MPIdentityApiResult?, error: Error?) in
             result(convertToIdentityResultJson(result: identityResult, error: error))
           })
+      } else {
+        invalidArguments(call.method, result: result)
       }
-      break;
     case "login":
       if let callArguments = call.arguments as? [String: Any],
          let requestDictionary = callArguments["identityRequest"] as? [NSNumber: String] {
@@ -136,8 +148,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
           MParticle.sharedInstance().identity.login(identityRequest, completion: {(identityResult: MPIdentityApiResult?, error: Error?) in
             result(convertToIdentityResultJson(result: identityResult, error: error))
           })
+      } else {
+        invalidArguments(call.method, result: result)
       }
-      break;
     case "logout":
       if let callArguments = call.arguments as? [String: Any],
          let requestDictionary = callArguments["identityRequest"] as? [NSNumber: String] {
@@ -145,8 +158,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
           MParticle.sharedInstance().identity.logout(identityRequest, completion: {(identityResult: MPIdentityApiResult?, error: Error?) in
             result(convertToIdentityResultJson(result: identityResult, error: error))
           })
+      } else {
+        invalidArguments(call.method, result: result)
       }
-      break;
     case "modify":
       if let callArguments = call.arguments as? [String: Any],
          let requestDictionary = callArguments["identityRequest"] as? [NSNumber: String] {
@@ -158,8 +172,6 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
         print("Incorrect argument for \(call.method) iOS method: identityRequest is required for modify")
         result(FlutterError(code: "INVALID_ARGUMENTS", message: "identityRequest is required for modify", details: nil))
       }
-      break;
-    // user methods
     case "getAttributions":
         if let attributions = MParticle.sharedInstance().attributionInfo() {
             var dictionary: [String: Any] = [:]
@@ -226,6 +238,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
            let mpid = Int(mpidString),
            let user = MParticle.sharedInstance().identity.getUser(NSNumber(value:mpid)) {
             user.incrementUserAttribute(attributeKey, byValue: attributeValue)
+            result(true)
+        } else {
+            invalidArguments(call.method, result: result)
         }
     case "removeUserAttribute":
         if let callArguments = call.arguments as? [String: Any],
@@ -234,6 +249,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
            let mpid = Int(mpidString),
            let user = MParticle.sharedInstance().identity.getUser(NSNumber(value:mpid)) {
             user.removeAttribute(attributeKey)
+            result(true)
+        } else {
+            invalidArguments(call.method, result: result)
         }
     case "setUserAttribute":
         if let callArguments = call.arguments as? [String: Any],
@@ -243,6 +261,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
            let mpid = Int64(mpidString),
            let user = MParticle.sharedInstance().identity.getUser(NSNumber(value:mpid)) {
             user.setUserAttribute(attributeKey, value: attributeValue)
+            result(true)
+        } else {
+            invalidArguments(call.method, result: result)
         }
     case "setUserAttributeArray":
         if let callArguments = call.arguments as? [String: Any],
@@ -252,6 +273,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
            let mpid = Int64(mpidString),
            let user = MParticle.sharedInstance().identity.getUser(NSNumber(value:mpid)) {
             user.setUserAttributeList(attributeKey, values: attributeValue)
+            result(true)
+        } else {
+            invalidArguments(call.method, result: result)
         }
     case "setUserTag":
         if let callArguments = call.arguments as? [String: Any],
@@ -260,6 +284,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
            let mpid = Int64(mpidString),
            let user = MParticle.sharedInstance().identity.getUser(NSNumber(value:mpid)) {
             user.setUserTag(attributeKey)
+            result(true)
+        } else {
+            invalidArguments(call.method, result: result)
         }
     case "getGDPRConsentState":
         if let callArguments = call.arguments as? [String: Any],
@@ -309,8 +336,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
 
                newConsentState.addGDPRConsentState(consentGDPR, purpose: purpose)
                user.setConsentState(newConsentState)
+               result(true)
         } else {
-            print("Incorrect argument for \(call.method) iOS method")
+            invalidArguments(call.method, result: result)
         }
     case "removeGDPRConsentState":
         if let callArguments = call.arguments as? [String: Any],
@@ -321,8 +349,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
            let consentState = user.consentState() {
             consentState.removeGDPRConsentState(withPurpose: purpose)
             user.setConsentState(consentState)
+            result(true)
         } else {
-            print("Incorrect argument for \(call.method) iOS method")
+            invalidArguments(call.method, result: result)
         }
     case "getCCPAConsentState":
         if let callArguments = call.arguments as? [String: Any],
@@ -363,8 +392,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
             }
             newConsentState.setCCPA(consentCCPA)
             user.setConsentState(newConsentState)
+            result(true)
         } else {
-            print("Incorrect argument for \(call.method) iOS method")
+            invalidArguments(call.method, result: result)
         }
     case "removeCCPAConsentState":
         if let callArguments = call.arguments as? [String: Any],
@@ -374,8 +404,9 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
            let consentState = user.consentState() {
             consentState.removeCCPAConsentState()
             user.setConsentState(consentState)
+            result(true)
         } else {
-            print("Incorrect argument for \(call.method) iOS method")
+            invalidArguments(call.method, result: result)
         }
     case "aliasUsers":
         if let callArguments = call.arguments as? [String: Any],
@@ -394,13 +425,19 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
                                              startTime: startTime,
                                              endTime: endTime)
                 MParticle.sharedInstance().identity.aliasUsers(request)
+                result(true)
             } else {
                 if let sourceUser = MParticle.sharedInstance().identity.getUser(NSNumber(value:sourceMPIDInteger)),
                    let destinationUser = MParticle.sharedInstance().identity.getUser(NSNumber(value:destinationMPIDInteger)) {
                     let request = MPAliasRequest(sourceUser:sourceUser, destinationUser:destinationUser)
                     MParticle.sharedInstance().identity.aliasUsers(request)
+                    result(true)
+                } else {
+                    invalidArguments(call.method, result: result)
                 }
             }
+        } else {
+            invalidArguments(call.method, result: result)
         }
     case "logCommerceEvent":
         if let callArguments = call.arguments as? [String: Any],
@@ -512,11 +549,13 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
             }
 
             MParticle.sharedInstance().logEvent(event)
+            result(true)
         } else {
-            print("Incorrect argument for \(call.method) iOS method")
+            invalidArguments(call.method, result: result)
         }
     case "setSdkVersion":
         MParticle._setWrapperSdk_internal(MPWrapperSdk.flutter, version: "")
+        result(true)
     case "roktSubscribeToEvents":
         if let callArguments = call.arguments as? [String: Any],
            let identifier = callArguments["identifier"] as? String {
@@ -598,7 +637,7 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
             result(FlutterError(code: "INVALID_ARGUMENTS", message: "Missing identifier", details: nil))
         }
     default:
-        print("mParticle flutter SDK for iOS does not support \(call.method)")
+        result(FlutterMethodNotImplemented)
     }
   }
 

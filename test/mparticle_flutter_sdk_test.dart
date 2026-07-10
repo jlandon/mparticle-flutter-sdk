@@ -736,11 +736,55 @@ void main() {
     });
 
     test('upload', () async {
-      mp.upload();
+      await mp.upload();
       expect(
         methodCall,
         isMethodCall('upload', arguments: null),
       );
+    });
+
+    test('fire-and-forget channel methods complete when native returns true',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        channel,
+        (MethodCall call) async {
+          methodCall = call;
+          return true;
+        },
+      );
+
+      final event = MPEvent(
+        eventName: 'Clicked Search Bar',
+        eventType: EventType.Search,
+      );
+
+      await mp.logEvent(event).timeout(const Duration(seconds: 1),
+          onTimeout: () {
+        fail('logEvent did not complete');
+      });
+
+      await mp.setOptOut(false).timeout(const Duration(seconds: 1),
+          onTimeout: () {
+        fail('first setOptOut did not complete');
+      });
+      await mp.setOptOut(true).timeout(const Duration(seconds: 1),
+          onTimeout: () {
+        fail('second setOptOut did not complete');
+      });
+
+      await mp
+          .setATTStatus(
+        attStatus: MPATTAuthorizationStatus.Authorized,
+        timestampInMillis: 1000,
+      )
+          .timeout(const Duration(seconds: 1), onTimeout: () {
+        fail('setATTStatus did not complete');
+      });
+
+      await mp.upload().timeout(const Duration(seconds: 1), onTimeout: () {
+        fail('upload did not complete');
+      });
     });
 
     test('alias users', () async {
