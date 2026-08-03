@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- iOS: Swift Package Manager layout for Xcode 26 / Swift 6.3 — Swift-only plugin SPM target (CocoaPods keeps ObjC shim), `InitializeOptionsParser` inlined under `ios/mparticle_flutter_sdk/`; `InitializeOptionsParserPackage` is test-only.
 - iOS: map Dart log level wire indices to `MPILogLevel` correctly (`verbose` no longer silently ignored; `info` maps to native Debug).
 - iOS: detect existing native SDK via `MParticle.initialized` (replacing `currentUser` check); `isInitialized` reflects native SDK state.
 - iOS: fail initialization when Rokt payment extension cannot be created; remove ineffective `do/catch` around `start(with:)`.

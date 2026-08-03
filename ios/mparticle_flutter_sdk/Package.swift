@@ -1,4 +1,4 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 //
 // Version lock table (pod ↔ SPM):
 // | Dependency            | CocoaPods        | SPM floor |
@@ -14,34 +14,39 @@ let package = Package(
     name: "mparticle_flutter_sdk",
     platforms: [
         .iOS("15.6"),
+        .macOS(.v12),
     ],
     products: [
         .library(name: "mparticle-flutter-sdk", targets: ["mparticle_flutter_sdk"]),
+        .library(name: "InitializeOptionsParser", targets: ["InitializeOptionsParser"]),
     ],
     dependencies: [
         .package(name: "FlutterFramework", path: "../FlutterFramework"),
-        .package(name: "InitializeOptionsParserPackage", path: "../InitializeOptionsParserPackage"),
         .package(url: "https://github.com/mParticle/mparticle-apple-sdk", from: "9.2.0"),
         .package(url: "https://github.com/mparticle-integrations/mp-apple-integration-rokt", from: "9.0.0"),
         .package(url: "https://github.com/ROKT/rokt-payment-extension-ios", from: "2.0.0"),
     ],
     targets: [
         .target(
+            name: "InitializeOptionsParser",
+            path: "Sources/InitializeOptionsParser"
+        ),
+        .target(
             name: "mparticle_flutter_sdk",
             dependencies: [
-                .product(name: "InitializeOptionsParser", package: "InitializeOptionsParserPackage"),
+                "InitializeOptionsParser",
                 .product(name: "FlutterFramework", package: "FlutterFramework"),
                 .product(name: "mParticle-Apple-SDK", package: "mparticle-apple-sdk"),
                 .product(name: "mParticle-Rokt", package: "mp-apple-integration-rokt"),
                 .product(name: "RoktPaymentExtension", package: "rokt-payment-extension-ios"),
             ],
             path: "Sources/mparticle_flutter_sdk",
-            publicHeadersPath: "include/mparticle_flutter_sdk",
+            exclude: [
+                "MparticleFlutterSdkPlugin.m",
+                "include",
+            ],
             resources: [
                 .process("PrivacyInfo.xcprivacy"),
-            ],
-            cSettings: [
-                .headerSearchPath("include/mparticle_flutter_sdk"),
             ]
         ),
     ]

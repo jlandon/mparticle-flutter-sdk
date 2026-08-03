@@ -1,6 +1,6 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
 //
-// Standalone package for InitializeOptionsParser unit tests (no FlutterFramework).
+// Thin test package for InitializeOptionsParser unit tests (depends on main plugin package).
 import PackageDescription
 
 let package = Package(
@@ -9,17 +9,15 @@ let package = Package(
         .iOS("15.6"),
         .macOS(.v12),
     ],
-    products: [
-        .library(name: "InitializeOptionsParser", targets: ["InitializeOptionsParser"]),
+    dependencies: [
+        .package(name: "mparticle_flutter_sdk", path: "../mparticle_flutter_sdk"),
     ],
     targets: [
-        .target(
-            name: "InitializeOptionsParser",
-            path: "Sources/InitializeOptionsParser"
-        ),
         .testTarget(
             name: "InitializeOptionsParserTests",
-            dependencies: ["InitializeOptionsParser"],
+            dependencies: [
+                .product(name: "InitializeOptionsParser", package: "mparticle_flutter_sdk"),
+            ],
             path: "Tests/InitializeOptionsParserTests"
         ),
     ]

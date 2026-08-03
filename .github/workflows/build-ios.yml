@@ -22,24 +22,23 @@ jobs:
           flutter-version: ${{ vars.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - name: Run iOS InitializeOptionsParser unit tests
-        working-directory: ios/InitializeOptionsParserPackage
-        run: swift test
-      - name: Pin CocoaPods package manager (pre-SPM migration guardrail)
-        run: flutter config --no-enable-swift-package-manager
       - name: Install example dependencies
         working-directory: example
         run: flutter pub get
+      - name: Generate iOS project (FlutterFramework for plugin SPM)
+        working-directory: example
+        run: |
+          flutter build ios --config-only --no-codesign --release --dart-define=MP_API_KEY=example-key --dart-define=MP_API_SECRET=example-secret
+      - name: Run iOS InitializeOptionsParser unit tests
+        working-directory: ios/InitializeOptionsParserPackage
+        run: swift test
       - name: Test
         working-directory: example
         run: flutter test
       - name: Build example iOS app
         working-directory: example
         run: |
-          flutter pub get
-          flutter build ios --config-only --no-codesign --release --dart-define=MP_API_KEY=example-key --dart-define=MP_API_SECRET=example-secret
-          cd ios
-          xcodebuild -workspace Runner.xcworkspace -scheme Runner -configuration Release -sdk iphoneos CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO -quiet
+          flutter build ios --release --no-codesign --dart-define=MP_API_KEY=example-key --dart-define=MP_API_SECRET=example-secret
       - name: Lint plugin podspec
         run: pod lib lint ios/mparticle_flutter_sdk.podspec --configuration=Debug --skip-tests --use-modular-headers --allow-warnings
       - name: Cleanup

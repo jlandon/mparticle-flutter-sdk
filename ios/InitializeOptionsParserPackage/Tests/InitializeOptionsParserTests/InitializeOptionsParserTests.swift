@@ -1,5 +1,5 @@
 import XCTest
-@testable import InitializeOptionsParser
+import InitializeOptionsParser
 
 final class InitializeOptionsParserTests: XCTestCase {
   func testParseLogLevel_mapsDartEnumIndices() {

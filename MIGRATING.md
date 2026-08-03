@@ -114,6 +114,8 @@ Returns `true` when the native Apple SDK reports initialized (`MParticle.initial
 
 Requires **Flutter ≥ 3.44.0** when using Swift Package Manager (default in Flutter 3.44+). CocoaPods-only apps on older Flutter can disable SPM with `flutter config --no-enable-swift-package-manager`.
 
+For SPM, all plugin native code (including `InitializeOptionsParser`) ships inside `ios/mparticle_flutter_sdk/` in the published package. The sibling `ios/InitializeOptionsParserPackage/` directory is for **unit tests only** and is not a dependency of app builds.
+
 ### Android Rokt events
 
 Extend `FlutterFragmentActivity` for `MainActivity` when using Rokt event subscriptions:

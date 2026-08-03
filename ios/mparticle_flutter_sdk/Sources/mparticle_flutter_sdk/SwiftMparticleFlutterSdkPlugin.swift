@@ -1,12 +1,13 @@
 import Flutter
 import UIKit
-#if canImport(InitializeOptionsParser)
 import InitializeOptionsParser
-#endif
 import mParticle_Apple_SDK
 import RoktContracts
 import RoktPaymentExtension
 
+#if SWIFT_PACKAGE
+@objc(MparticleFlutterSdkPlugin)
+#endif
 public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
 
   fileprivate static let VIEW_CALL_DELEGATE = "rokt_sdk.rokt.com/rokt_layout"
