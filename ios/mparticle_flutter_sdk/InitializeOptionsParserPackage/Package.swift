@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "InitializeOptionsParserCore",
+    name: "InitializeOptionsParserPackage",
     platforms: [
         .iOS("15.6"),
         .macOS(.v12),
@@ -16,6 +16,11 @@ let package = Package(
         .target(
             name: "InitializeOptionsParser",
             path: "Sources/InitializeOptionsParser"
+        ),
+        .testTarget(
+            name: "InitializeOptionsParserTests",
+            dependencies: ["InitializeOptionsParser"],
+            path: "Tests/InitializeOptionsParserTests"
         ),
     ]
 )

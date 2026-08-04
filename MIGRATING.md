@@ -141,12 +141,12 @@ Returns `true` when the native Apple SDK reports initialized (`MParticle.initial
 
 Requires **Flutter ≥ 3.44.0** — `pubspec.yaml` enforces this floor for 3.0.x. Swift Package Manager is the default iOS integration path in Flutter 3.44+.
 
-For SPM, all plugin native code ships inside `ios/mparticle_flutter_sdk/` in the published package; `InitializeOptionsParser` sources live in `ios/InitializeOptionsParserCore/` and are linked by the plugin `Package.swift` and CocoaPods podspec. The sibling `ios/InitializeOptionsParserPackage/` directory is for **unit tests only** and is not a dependency of app builds.
+For SPM, all plugin native code ships inside `ios/mparticle_flutter_sdk/` in the published package, including `InitializeOptionsParserPackage` (local path dependency under the same tree). CocoaPods compiles the parser sources via the podspec. The nested package is also used for **unit tests only** and is not a separate app dependency beyond the plugin’s `Package.swift`.
 
 The plugin `Package.swift` references a local `FlutterFramework` package that Flutter symlinks next to the plugin when an app resolves SPM dependencies (under the app’s `ios/Flutter/ephemeral/Packages/.packages/` tree, not as `<repo>/ios/FlutterFramework`). App builds and CI obtain it via `flutter build ios --config-only` from an app that depends on this plugin — see [build-ios.yml](./.github/workflows/build-ios.yml). **Note:** GitHub Actions in this repo pin Xcode **16.4** for reproducible CI; this branch’s SPM layout targets **Xcode 26 / Swift 6.3** compatibility on your machine — use a matching Xcode locally when validating Swift 6.3-only behavior. **`InitializeOptionsParser` unit tests** do not need `FlutterFramework`:
 
 ```bash
-cd ios/InitializeOptionsParserPackage && swift test
+cd ios/mparticle_flutter_sdk/InitializeOptionsParserPackage && swift test
 ```
 
 ### Rokt (3.0+)

@@ -36,7 +36,7 @@ jobs:
         run: |
           flutter build ios --config-only --no-codesign --release --dart-define=MP_API_KEY=example-key --dart-define=MP_API_SECRET=example-secret
       - name: Run iOS InitializeOptionsParser unit tests
-        working-directory: ios/InitializeOptionsParserPackage
+        working-directory: ios/mparticle_flutter_sdk/InitializeOptionsParserPackage
         run: swift test
       - name: Test
         working-directory: example
