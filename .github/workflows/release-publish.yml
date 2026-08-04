@@ -49,6 +49,8 @@ jobs:
           flutter-version: ${{ vars.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Verify Flutter version floor
+        uses: ./.github/actions/verify-flutter-floor
 
       - name: Publish Package
         run: |

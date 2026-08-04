@@ -118,6 +118,23 @@ class MparticleFlutterSdk {
         completer.complete(sdk);
       }
     } on MparticleInitException catch (e) {
+      if (e.code == MparticleInitErrorCodes.timeout) {
+        try {
+          final ready = await _channel.invokeMethod<bool>('isInitialized');
+          if (ready == true) {
+            final sdk = MparticleFlutterSdk._();
+            _instance = sdk;
+            _initialized = true;
+            _placeholders.clear();
+            if (!completer.isCompleted) {
+              completer.complete(sdk);
+            }
+            return initFuture;
+          }
+        } catch (_) {
+          // Probe failed; fall through to timeout error.
+        }
+      }
       _initializedApiKey = null;
       if (!completer.isCompleted) {
         completer.completeError(e);

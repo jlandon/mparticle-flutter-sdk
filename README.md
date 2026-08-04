@@ -24,18 +24,18 @@ flutter pub add mparticle_flutter_sdk
 
 Specifying this dependency adds a line like the following to your package's `pubspec.yaml`:
 
-```bash
+```yaml
 dependencies:
-    mparticle_flutter_sdk: ^3.0.0-beta.1
+  mparticle_flutter_sdk: ^3.0.0-beta.1
 ```
 
 2.  Import the package into your Dart code:
 
-```bash
-import 'package:mparticle_flutter_sdk/mparticle_flutter_sdk.dart'
+```dart
+import 'package:mparticle_flutter_sdk/mparticle_flutter_sdk.dart';
 ```
 
-Now initialize mParticle from Dart. You do not need app-level mParticle Gradle/Podfile pins or native `MParticle.start()` in Application/AppDelegate (Rokt kits are bundled in the plugin). When upgrading from 2.x, follow [MIGRATING.md](./MIGRATING.md) to remove duplicate deps, set iOS 15.6+, and extend `MainActivity` for Rokt.
+Now initialize mParticle from Dart. You do not need app-level native `MParticle.start()` in Application/AppDelegate (Rokt kits are bundled in the plugin). When upgrading, follow [MIGRATING.md](./MIGRATING.md): if you are on **1.x**, complete [Migrating from versions < 2.0.0](./MIGRATING.md#migrating-from-versions--200) before [Migrating from versions < 3.0.0](./MIGRATING.md#migrating-from-versions--300). From **2.x**, remove duplicate deps, set iOS 15.6+, run `pod install` when using CocoaPods, and extend `MainActivity` for Rokt.
 
 ### Mobile (Android & iOS)
 
@@ -83,22 +83,24 @@ import io.flutter.embedding.android.FlutterFragmentActivity
 class MainActivity : FlutterFragmentActivity()
 ```
 
+If `MainActivity` stays a plain `FlutterActivity`, `rokt.events()` throws `PlatformException` with code `MP_ROKT_LIFECYCLE_UNAVAILABLE`. If no `Activity` is attached when subscribing, the code is `MP_ROKT_ACTIVITY_UNAVAILABLE`. See [MIGRATING.md — Android Rokt events](./MIGRATING.md#android-rokt-events).
+
 **Rokt bundle:** all apps inherit Rokt native dependencies (~1–2 MB Android APK impact).
 
-Requires **Flutter ≥ 3.44.0** for Swift Package Manager support on iOS.
+Requires **Flutter ≥ 3.44.0** for Swift Package Manager support on iOS (default integration path). **CocoaPods apps:** after `flutter pub get`, run `cd ios && pod install` (or `pod deintegrate && pod install` after Podfile changes). Remove duplicate mParticle pods from your app Podfile and follow [MIGRATING.md](./MIGRATING.md#ios-dependency-pins) for version floors and duplicate-dep cleanup.
 
 #### Initialization errors
 
 `initialize()` throws [MparticleInitException] with stable [MparticleInitErrorCodes] values:
 
-| Code                           | Where raised       | When                                                                             | Action                                               |
-| ------------------------------ | ------------------ | -------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `MP_INIT_INVALID_CREDENTIALS`  | Dart, Android, iOS | Empty `apiKey` / `apiSecret`                                                     | Pass non-empty credentials                           |
-| `MP_INIT_INVALID_BASE_URL`     | Dart, Android, iOS | `customBaseUrl` not HTTPS or not parseable                                       | Fix CNAME URL                                        |
-| `MP_INIT_INVALID_OPTIONS`      | Dart, Android, iOS | Invalid bootstrap identities, urlScheme, or native start failure                 | Fix options; check logcat/Xcode                      |
-| `MP_INIT_ALREADY_STARTED`      | Dart, Android, iOS | Second init with different key, or legacy native init still present              | Use one init path; remove native `MParticle.start()` |
-| `MP_INIT_TIMEOUT`              | Dart               | Method channel did not complete within `initTimeout` (default 5s, clamped 1–30s) | Increase `initTimeout` or fix native startup         |
-| `MP_INIT_UNSUPPORTED_PLATFORM` | Dart               | `initialize()` on web                                                            | Use JS snippet + `waitUntilReady()`                  |
+| Code                           | Where raised       | When                                                                                                                                            | Action                                                                                                                                                                                                                                  |
+| ------------------------------ | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MP_INIT_INVALID_CREDENTIALS`  | Dart, Android, iOS | Empty `apiKey` / `apiSecret`                                                                                                                    | Pass non-empty credentials                                                                                                                                                                                                              |
+| `MP_INIT_INVALID_BASE_URL`     | Dart, Android, iOS | `customBaseUrl` not HTTPS or not parseable                                                                                                      | Fix CNAME URL                                                                                                                                                                                                                           |
+| `MP_INIT_INVALID_OPTIONS`      | Dart, Android, iOS | Invalid bootstrap identities, urlScheme, or native start failure                                                                                | Fix options; check logcat/Xcode                                                                                                                                                                                                         |
+| `MP_INIT_ALREADY_STARTED`      | Dart, Android, iOS | Second init with different key, or legacy native init still present                                                                             | Use one init path; remove native `MParticle.start()`                                                                                                                                                                                    |
+| `MP_INIT_TIMEOUT`              | Dart               | `initialize()` channel did not complete within `initTimeout`, or web `waitUntilReady()` deadline exceeded (default 5s, clamped 1–30s on mobile) | Increase timeout or fix startup; on mobile, native init may still finish after a Dart timeout — call `initialize()` again with the same credentials and check logcat/Xcode; retry until `initialize()` succeeds before using `instance` |
+| `MP_INIT_UNSUPPORTED_PLATFORM` | Dart               | `initialize()` on web                                                                                                                           | Use JS snippet + `waitUntilReady()`                                                                                                                                                                                                     |
 
 ```dart
 try {
@@ -116,7 +118,7 @@ try {
 - `bootstrapIdentityRequest` — optional startup identify (max **10** identities, max **256** characters per value). Adds latency before `runApp()`; prefer `identity.identify()` after startup when possible.
 - `logLevel` — on iOS, `MparticleLogLevel.info` maps to native Debug because the Apple SDK has no INFO level; `info` and `debug` both use Debug on iOS.
 - `customBaseUrl` — must be HTTPS with a valid host (validated in Dart and on native platforms).
-- **Hot restart:** if `initialize()` returns `MP_INIT_ALREADY_STARTED` after a hot restart, perform a full app restart — the native SDK remains initialized while Dart state was reset.
+- **Hot restart:** Dart/plugin static state resets while the native SDK often stays initialized. Re-calling `initialize()` with the **same** credentials may succeed idempotently when native state matches; expect `MparticleAlreadyInitializedException` (`MP_INIT_ALREADY_STARTED`) when legacy native start remains, credentials differ, or native state diverges. Prefer a full app restart when debugging init or after credential changes.
 
 See [MIGRATING.md](./MIGRATING.md) for the 2.x → 3.0 upgrade guide.
 
@@ -256,7 +258,7 @@ Browsers without WasmGC (e.g. iOS WebKit) automatically fall back to the JS buil
 
 Use the modern Flutter web bootstrap (`flutter_bootstrap.js`) in `index.html`. Load the mParticle snippet from **HTTPS only** (`https://jssdkcdns.mparticle.com/...`).
 
-**Web error codes** (`MP_WEB_*`): see [docs/web-architecture.md](./docs/web-architecture.md). Match `PlatformException.code` against exported `MparticleWebErrorCodes` from `package:mparticle_flutter_sdk.dart`.
+**Web error codes** (`MP_WEB_*`, including `MP_WEB_INVALID_ALIAS_REQUEST` for partial alias time windows): see [docs/web-architecture.md](./docs/web-architecture.md). Match `PlatformException.code` against exported `MparticleWebErrorCodes` from `package:mparticle_flutter_sdk.dart`.
 
 **Pre-release smoke:** [docs/web-smoke-checklist.md](./docs/web-smoke-checklist.md).
 
@@ -868,13 +870,14 @@ A few methods are currently supported only on iOS/Android SDKs:
 - Set App Tracking Transparency (ATT) Status
 
   For iOS, you can set a user's ATT status as follows:
-  import 'package:mparticle_flutter_sdk/apple/authorization_status.dart';
 
   ```dart
+  import 'package:mparticle_flutter_sdk/apple/authorization_status.dart';
 
   mpInstance?.setATTStatus(
-        attStatus: MPATTAuthorizationStatus.Authorized,
-        timestampInMillis: DateTime.now().millisecondsSinceEpoch);
+    attStatus: MPATTAuthorizationStatus.Authorized,
+    timestampInMillis: DateTime.now().millisecondsSinceEpoch,
+  );
   ```
 
 # License

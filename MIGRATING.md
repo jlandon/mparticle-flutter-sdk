@@ -12,6 +12,8 @@ Version 3.0.0 introduces Dart-only mobile initialization and Swift Package Manag
 
 > **Upgrading from 1.x:** Complete [Migrating from versions < 2.0.0](#migrating-from-versions--200) first (iOS 15.6+, CocoaPods subspec updates, and `pod install`).
 
+> **Beta consumers:** iOS fixes listed under [CHANGELOG](./CHANGELOG.md#unreleased) `[Unreleased]` (log-level mapping, `MParticle.initialized` detection, Rokt payment extension init failure) apply when upgrading off `3.0.0-beta.1`; no Dart API break for SPM layout — run `flutter clean`, rebuild iOS, and `pod install` / deintegrate if using CocoaPods.
+
 ### Remove native mobile initialization
 
 1. Delete custom `Application` class / `MParticle.start()` from Android.
@@ -25,18 +27,37 @@ Version 3.0.0 introduces Dart-only mobile initialization and Swift Package Manag
 ### Add Dart initialization
 
 ```dart
-WidgetsFlutterBinding.ensureInitialized();
-await MparticleFlutterSdk.initialize(
-  MparticleOptions(
-    apiKey: const String.fromEnvironment('MP_API_KEY'),
-    apiSecret: const String.fromEnvironment('MP_API_SECRET'),
-  ),
-);
+import 'package:flutter/widgets.dart';
+import 'package:mparticle_flutter_sdk/mparticle_flutter_sdk.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await MparticleFlutterSdk.initialize(
+    MparticleOptions(
+      apiKey: const String.fromEnvironment('MP_API_KEY'),
+      apiSecret: const String.fromEnvironment('MP_API_SECRET'),
+    ),
+  );
+}
 ```
 
-Web apps: keep the JS snippet in `index.html` and call `await MparticleFlutterSdk.waitUntilReady()`.
+**Web-only upgraders:** follow [Web → Wasm (3.0+)](#web--wasm-30) (bootstrap, HTTPS snippet, JS + Wasm builds, Chrome smoke checklist) before production — do not treat `waitUntilReady()` alone as sufficient for 3.0 web migration.
 
-### Web → Wasm (3.0+)
+**Greenfield web apps:** keep the JS snippet in `index.html` and call `await MparticleFlutterSdk.waitUntilReady()`.
+
+### Android Rokt events
+
+Extend `FlutterFragmentActivity` for `MainActivity` when using Rokt event subscriptions (do this before calling `rokt.events()`):
+
+```kotlin
+import io.flutter.embedding.android.FlutterFragmentActivity
+
+class MainActivity : FlutterFragmentActivity()
+```
+
+If `MainActivity` is a plain `FlutterActivity`, `rokt.events()` throws `PlatformException` with code `MP_ROKT_LIFECYCLE_UNAVAILABLE`. If no `Activity` is attached when subscribing, the code is `MP_ROKT_ACTIVITY_UNAVAILABLE`.
+
+### Web → Wasm (3.0+) — web-only path
 
 The web implementation migrated from `dart:js` to `dart:js_interop` for [Flutter Wasm](https://docs.flutter.dev/platform-integration/web/wasm) compatibility.
 
@@ -70,14 +91,16 @@ try {
 }
 ```
 
-| Code                           | Android native | iOS native | Dart-only      |
-| ------------------------------ | -------------- | ---------- | -------------- |
-| `MP_INIT_INVALID_CREDENTIALS`  | yes            | yes        | yes (validate) |
-| `MP_INIT_INVALID_BASE_URL`     | yes            | yes        | yes (validate) |
-| `MP_INIT_INVALID_OPTIONS`      | yes            | yes        | yes (validate) |
-| `MP_INIT_ALREADY_STARTED`      | yes            | yes        | yes            |
-| `MP_INIT_TIMEOUT`              | —              | —          | yes            |
-| `MP_INIT_UNSUPPORTED_PLATFORM` | —              | —          | yes (web)      |
+| Code                           | Android native | iOS native | Dart-only                                                                            |
+| ------------------------------ | -------------- | ---------- | ------------------------------------------------------------------------------------ |
+| `MP_INIT_INVALID_CREDENTIALS`  | yes            | yes        | yes (validate)                                                                       |
+| `MP_INIT_INVALID_BASE_URL`     | yes            | yes        | yes (validate)                                                                       |
+| `MP_INIT_INVALID_OPTIONS`      | yes            | yes        | yes (validate)                                                                       |
+| `MP_INIT_ALREADY_STARTED`      | yes            | yes        | yes                                                                                  |
+| `MP_INIT_TIMEOUT`              | —              | —          | yes (`initialize()` watchdog; web `waitUntilReady()` uses the same code on deadline) |
+| `MP_INIT_UNSUPPORTED_PLATFORM` | —              | —          | yes (web)                                                                            |
+
+After `MP_INIT_TIMEOUT` on mobile, native initialization may still complete under the hood. Call `initialize()` again with the same credentials when logcat/Xcode suggests the SDK started; `MparticleFlutterSdk.instance` stays unavailable until a successful Dart init completes.
 
 ### Map native options to MparticleOptions
 
@@ -120,19 +143,44 @@ Requires **Flutter ≥ 3.44.0** — `pubspec.yaml` enforces this floor for 3.0.x
 
 For SPM, all plugin native code ships inside `ios/mparticle_flutter_sdk/` in the published package; `InitializeOptionsParser` sources live in `ios/InitializeOptionsParserCore/` and are linked by the plugin `Package.swift` and CocoaPods podspec. The sibling `ios/InitializeOptionsParserPackage/` directory is for **unit tests only** and is not a dependency of app builds.
 
-The plugin `Package.swift` references a local `FlutterFramework` package that Flutter symlinks next to the plugin when an app resolves SPM dependencies (under the app’s `ios/Flutter/ephemeral/Packages/.packages/` tree, not as `<repo>/ios/FlutterFramework`). App builds and CI obtain it via `flutter build ios --config-only` from an app that depends on this plugin — see [build-ios.yml](./.github/workflows/build-ios.yml). **`InitializeOptionsParser` unit tests** do not need `FlutterFramework`: run `swift test` from `ios/InitializeOptionsParserPackage`, which compiles the parser sources directly.
+The plugin `Package.swift` references a local `FlutterFramework` package that Flutter symlinks next to the plugin when an app resolves SPM dependencies (under the app’s `ios/Flutter/ephemeral/Packages/.packages/` tree, not as `<repo>/ios/FlutterFramework`). App builds and CI obtain it via `flutter build ios --config-only` from an app that depends on this plugin — see [build-ios.yml](./.github/workflows/build-ios.yml). **Note:** GitHub Actions in this repo pin Xcode **16.4** for reproducible CI; this branch’s SPM layout targets **Xcode 26 / Swift 6.3** compatibility on your machine — use a matching Xcode locally when validating Swift 6.3-only behavior. **`InitializeOptionsParser` unit tests** do not need `FlutterFramework`:
 
-### Android Rokt events
-
-Extend `FlutterFragmentActivity` for `MainActivity` when using Rokt event subscriptions:
-
-```kotlin
-import io.flutter.embedding.android.FlutterFragmentActivity
-
-class MainActivity : FlutterFragmentActivity()
+```bash
+cd ios/InitializeOptionsParserPackage && swift test
 ```
 
-If `MainActivity` is a plain `FlutterActivity`, `rokt.events()` throws `PlatformException` with code `MP_ROKT_LIFECYCLE_UNAVAILABLE`.
+### Rokt (3.0+)
+
+- **Breaking:** `Rokt.events(...)` returns `Future<void>` in 3.0 — **await** `events(identifier, ...)` before `selectPlacements` or `selectShoppableAds` for that identifier (2.x fire-and-forget call sites can race subscription registration on Android).
+- Rokt event delivery uses explicit subscription by identifier through `Rokt.events(...)`.
+
+For iOS payment-enabled shoppable ads, pass `IOSOptions.roktPaymentExtension` on `MparticleOptions` at `initialize()` (see [README.md — Rokt](./README.md#rokt)). Native AppDelegate registration is no longer required after Dart-only init.
+
+```dart
+const identifier = 'shoppable-ads-placement';
+final mp = await MparticleFlutterSdk.initialize(
+  MparticleOptions(
+    apiKey: const String.fromEnvironment('MP_API_KEY'),
+    apiSecret: const String.fromEnvironment('MP_API_SECRET'),
+    ios: IOSOptions(
+      roktPaymentExtension: RoktPaymentExtensionOptions(
+        applePayMerchantId: 'merchant.com.example.app',
+      ),
+    ),
+  ),
+);
+await mp.rokt.events(identifier, (event) {
+  // handle Rokt events for this placement
+});
+await mp.rokt.selectShoppableAds(
+  identifier: identifier,
+  attributes: {'email': 'user@example.com'},
+);
+```
+
+- **iOS**: proxies to `MParticle.sharedInstance().rokt.selectShoppableAds(...)`.
+- **Android**: the method is exposed for API parity but is a no-op (logs a warning).
+- **Web**: not implemented — calls throw `PlatformException` with code `Unimplemented`.
 
 ### iOS dependency pins
 
@@ -215,36 +263,4 @@ roktEventChannel.receiveBroadcastStream().listen((dynamic event) {
 });
 ```
 
-### New Rokt API: `selectShoppableAds` (iOS only)
-
-Rokt event delivery uses explicit subscription by identifier through `Rokt.events(...)`. Call `events(identifier, ...)` **before** `selectPlacements(...)` or `selectShoppableAds(...)` for that identifier.
-
-**3.0+:** For iOS payment-enabled shoppable ads, pass `IOSOptions.roktPaymentExtension` on `MparticleOptions` at `initialize()` (see [README.md](./README.md)). Native AppDelegate registration is no longer required after Dart-only init.
-
-**2.x:** The Rokt payment extension was registered from native Swift/Objective-C in the host app (for example `ios/Runner/AppDelegate.swift`), after `MParticle.sharedInstance().start(with:)`.
-
-```dart
-const identifier = 'shoppable-ads-placement';
-final mp = await MparticleFlutterSdk.initialize(
-  MparticleOptions(
-    apiKey: const String.fromEnvironment('MP_API_KEY'),
-    apiSecret: const String.fromEnvironment('MP_API_SECRET'),
-    ios: IOSOptions(
-      roktPaymentExtension: RoktPaymentExtensionOptions(
-        applePayMerchantId: 'merchant.com.example.app',
-      ),
-    ),
-  ),
-);
-await mp.rokt.events(identifier, (event) {
-  // handle Rokt events for this placement
-});
-await mp.rokt.selectShoppableAds(
-  identifier: identifier,
-  attributes: {'email': 'user@example.com'},
-);
-```
-
-- **iOS**: proxies to `MParticle.sharedInstance().rokt.selectShoppableAds(...)`.
-- **Android**: the method is exposed for API parity but is a no-op (logs a warning).
-- **Web**: not implemented — calls throw `PlatformException` with code `Unimplemented`.
+2.x added iOS-only `selectShoppableAds` on the native Rokt bridge. In **3.0+**, use Dart `initialize()` with `IOSOptions.roktPaymentExtension` and the [Rokt (3.0+)](#rokt-30) sample — do not register the payment extension from AppDelegate after removing native init.

@@ -1,5 +1,7 @@
 // Maps the Flutter MethodChannel API to the mParticle JS SDK (Wasm-safe interop).
 
+import 'dart:developer' as developer;
+
 import 'package:flutter/services.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:mparticle_flutter_sdk/src/web_helpers/analytics_web.dart'
@@ -17,7 +19,7 @@ import 'package:mparticle_flutter_sdk/src/web_helpers/user_web.dart'
 /// A web implementation of the MparticleFlutterSdk plugin.
 class MparticleFlutterSdkWeb {
   MparticleFlutterSdkWeb({MParticleJsBridge? bridge})
-      : _bridge = bridge ?? MParticleJsBridge.instance;
+    : _bridge = bridge ?? MParticleJsBridge.instance;
 
   final MParticleJsBridge _bridge;
 
@@ -37,7 +39,13 @@ class MparticleFlutterSdkWeb {
       return await _dispatch(call);
     } on PlatformException {
       rethrow;
-    } catch (error) {
+    } catch (error, stackTrace) {
+      developer.log(
+        'mParticle web interop error',
+        name: 'mparticle_flutter_sdk',
+        error: error,
+        stackTrace: stackTrace,
+      );
       throw PlatformException(
         code: MparticleWebErrorCodes.interopFailed,
         message: 'mParticle web interop failed for ${call.method}.',
@@ -50,9 +58,13 @@ class MparticleFlutterSdkWeb {
     switch (call.method) {
       case 'isInitialized':
         try {
+          _bridge.requireMParticle();
           return analytics_web.isInitialized(bridge: _bridge);
         } on PlatformException catch (error) {
-          if (error.code == MparticleWebErrorCodes.snippetMissing) {
+          if (error.code == MparticleWebErrorCodes.snippetMissing ||
+              error.code == MparticleWebErrorCodes.interopFailed ||
+              error.code == MparticleWebErrorCodes.notReady ||
+              error.code.startsWith('MP_WEB_')) {
             rethrow;
           }
           throw PlatformException(

@@ -9,7 +9,7 @@ flutter run \
   --dart-define=MP_API_SECRET=YOUR_SECRET
 ```
 
-Placeholder credentials (`example-key` / `example-secret`) work for UI smoke tests.
+In **debug** builds only, omitting `--dart-define` falls back to placeholder credentials (`example-key` / `example-secret`) for local UI smoke tests. Release/profile builds require `--dart-define` (init fails with invalid credentials when keys are empty).
 
 ## Web
 

@@ -22,6 +22,8 @@ jobs:
           flutter-version: ${{ vars.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Verify Flutter version floor
+        uses: ./.github/actions/verify-flutter-floor
       - name: Install dependencies
         run: flutter pub get
       - name: Run tests
@@ -36,9 +38,7 @@ jobs:
         run: flutter pub get
       - name: Run Android plugin unit tests
         working-directory: example/android
-        run: |
-          ./gradlew projects
-          ./gradlew :mparticle_flutter_sdk:testDebugUnitTest
+        run: ./gradlew :mparticle_flutter_sdk:testDebugUnitTest
       - name: Cleanup
         if: ${{ always() }}
         run: |

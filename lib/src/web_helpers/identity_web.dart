@@ -4,6 +4,7 @@ import 'dart:js_interop';
 
 import 'package:flutter/services.dart';
 import 'package:mparticle_flutter_sdk/src/web_helpers/js_bridge.dart';
+import 'package:mparticle_flutter_sdk/src/web_helpers/user_lookup.dart';
 import 'package:mparticle_flutter_sdk/src/web_helpers/web_identity_helpers.dart';
 
 /// Identity JS interop for web — see also [web_identity_helpers.dart] (pure Dart).
@@ -12,6 +13,8 @@ import 'package:mparticle_flutter_sdk/src/web_helpers/web_identity_helpers.dart'
 /// parses identity wire JSON on the Dart API layer.
 
 const _identityCallbackTimeout = Duration(seconds: 60);
+const _identityCallbackTimeoutGrace = Duration(milliseconds: 250);
+const _identityCallbackLateSuccessWindow = Duration(milliseconds: 250);
 
 /// Canonical async JS callback pattern for identity methods.
 Future<String> invokeIdentityCallback({
@@ -20,18 +23,30 @@ Future<String> invokeIdentityCallback({
   required String identityMethod,
   required Map<String, dynamic> identityRequest,
   Duration timeout = _identityCallbackTimeout,
+  Duration timeoutGrace = _identityCallbackTimeoutGrace,
+  Duration lateSuccessWindow = _identityCallbackLateSuccessWindow,
 }) {
   final completer = Completer<String>();
   JSFunction? callbackRef;
   Timer? timer;
+  Timer? timeoutGraceTimer;
+  var lateSuccessOnlyPhase = false;
+
+  void cancelPendingTimers() {
+    timeoutGraceTimer?.cancel();
+    timer?.cancel();
+  }
 
   void completeWithResult(JSAny resultAny) {
-    if (completer.isCompleted) {
-      return;
-    }
-
     try {
       if (resultAny.isUndefinedOrNull) {
+        if (lateSuccessOnlyPhase) {
+          return;
+        }
+        if (completer.isCompleted) {
+          return;
+        }
+        cancelPendingTimers();
         completer.complete(
           buildIdentityResultJson(
             httpCode: -1,
@@ -47,6 +62,11 @@ Future<String> invokeIdentityCallback({
 
       final result = resultAny as JSObject;
       final httpCode = _readHttpCode(bridge, result);
+
+      if (lateSuccessOnlyPhase && httpCode != 200) {
+        return;
+      }
+
       final mpid = _readMpid(bridge, result);
       final previousMpid = identityMethod == 'modify'
           ? null
@@ -78,6 +98,11 @@ Future<String> invokeIdentityCallback({
           }
       }
 
+      if (completer.isCompleted) {
+        return;
+      }
+
+      cancelPendingTimers();
       completer.complete(
         buildIdentityResultJson(
           httpCode: httpCode,
@@ -90,6 +115,10 @@ Future<String> invokeIdentityCallback({
         ),
       );
     } catch (_) {
+      if (lateSuccessOnlyPhase || completer.isCompleted) {
+        return;
+      }
+      cancelPendingTimers();
       completer.complete(
         buildIdentityResultJson(
           httpCode: -1,
@@ -100,8 +129,6 @@ Future<String> invokeIdentityCallback({
           identityMethod: identityMethod,
         ),
       );
-    } finally {
-      timer?.cancel();
     }
   }
 
@@ -109,10 +136,24 @@ Future<String> invokeIdentityCallback({
     if (completer.isCompleted) {
       return;
     }
-    completer.complete(buildIdentityTimeoutJson());
+    timeoutGraceTimer?.cancel();
+    timeoutGraceTimer = Timer(timeoutGrace, () {
+      if (completer.isCompleted) {
+        return;
+      }
+      lateSuccessOnlyPhase = true;
+      timeoutGraceTimer = Timer(lateSuccessWindow, () {
+        if (completer.isCompleted) {
+          return;
+        }
+        cancelPendingTimers();
+        completer.complete(buildIdentityTimeoutJson());
+      });
+    });
   }
 
   callbackRef = ((JSAny result) {
+    timer?.cancel();
     completeWithResult(result);
   }).toJS;
 
@@ -125,6 +166,7 @@ Future<String> invokeIdentityCallback({
 
   return completer.future.whenComplete(() {
     timer?.cancel();
+    timeoutGraceTimer?.cancel();
     callbackRef = null;
   });
 }
@@ -184,11 +226,14 @@ Map<String, dynamic> createAliasRequest({
   final aliasMaxWindowValue = bridge.getProperty(sdkConfig, 'aliasMaxWindow');
   final aliasMaxWindowDays = _toInt(aliasMaxWindowValue) ?? 0;
 
-  final user =
-      bridge.callMethodVarArgs(identity, 'getUser', [
-            bridge.jsifyValue(sourceMpid)!,
-          ])
-          as JSObject;
+  final user = userForMpid(
+    bridge: bridge,
+    identity: identity,
+    mpid: sourceMpid,
+  );
+  if (user == null) {
+    throwUserNotFound();
+  }
 
   final startTime =
       _toInt(bridge.callMethodVarArgs(user, 'getFirstSeenTime', [])) ?? 0;

@@ -14,6 +14,7 @@ Wasm-safe web implementation for the mParticle Flutter plugin. Wire contracts be
 | `lib/src/web_helpers/consent_web.dart`          | GDPR/CCPA                                                           |
 | `lib/src/web_helpers/commerce_web.dart`         | Commerce events                                                     |
 | `lib/src/web_helpers/commerce_helpers.dart`     | Pure Dart commerce arg builder                                      |
+| `lib/src/web_helpers/user_lookup.dart`          | Shared `getUser` / MPID null guards for user + identity web         |
 | `lib/src/web_helpers/user_web.dart`             | User attributes/identities                                          |
 | `lib/src/web_helpers/analytics_web.dart`        | Events, opt-out, Rokt                                               |
 | `lib/mparticle_flutter_sdk_web.dart`            | Thin MethodChannel router                                           |
@@ -22,15 +23,16 @@ Only `js_runtime.dart` and `mparticle_globals.dart` import `dart:js_interop_unsa
 
 ## Web error codes (`MP_WEB_*`)
 
-| Code                          | Meaning                       | Remediation                                                    |
-| ----------------------------- | ----------------------------- | -------------------------------------------------------------- |
-| `MP_WEB_SNIPPET_MISSING`      | `window.mParticle` not found  | Add mParticle snippet to `index.html` before Flutter bootstrap |
-| `MP_WEB_NOT_READY`            | SDK not initialized           | Wait for `waitUntilReady()`; verify API key                    |
-| `MP_WEB_INTEROP_FAILED`       | Unexpected interop failure    | Check browser console; verify CDN load                         |
-| `MP_WEB_IDENTITY_UNAVAILABLE` | `mParticle.Identity` missing  | Verify snippet version / workspace config                      |
-| `MP_WEB_CONSENT_UNAVAILABLE`  | `mParticle.Consent` missing   | Same as above                                                  |
-| `MP_WEB_COMMERCE_UNAVAILABLE` | `mParticle.eCommerce` missing | Same as above                                                  |
-| `MP_WEB_ROKT_UNAVAILABLE`     | `mParticle.Rokt` missing      | Enable Rokt kit in workspace                                   |
+| Code                           | Meaning                       | Remediation                                                       |
+| ------------------------------ | ----------------------------- | ----------------------------------------------------------------- |
+| `MP_WEB_SNIPPET_MISSING`       | `window.mParticle` not found  | Add mParticle snippet to `index.html` before Flutter bootstrap    |
+| `MP_WEB_NOT_READY`             | SDK not initialized           | Wait for `waitUntilReady()`; verify API key                       |
+| `MP_WEB_INTEROP_FAILED`        | Unexpected interop failure    | Check browser console; verify CDN load                            |
+| `MP_WEB_IDENTITY_UNAVAILABLE`  | `mParticle.Identity` missing  | Verify snippet version / workspace config                         |
+| `MP_WEB_CONSENT_UNAVAILABLE`   | `mParticle.Consent` missing   | Same as above                                                     |
+| `MP_WEB_COMMERCE_UNAVAILABLE`  | `mParticle.eCommerce` missing | Same as above                                                     |
+| `MP_WEB_ROKT_UNAVAILABLE`      | `mParticle.Rokt` missing      | Enable Rokt kit in workspace                                      |
+| `MP_WEB_INVALID_ALIAS_REQUEST` | Partial alias time window     | Pass both `startTime` and `endTime` to `aliasUsers`, or omit both |
 
 ## MethodChannel wire contract
 
@@ -62,6 +64,7 @@ Only `js_runtime.dart` and `mparticle_globals.dart` import `dart:js_interop_unsa
 - `4xx`: errors from JS `body.errors` array
 - `5xx`: raw `body.errors` without normalization
 - **Timeout (60s):** returns `-1`-style client error JSON (additive behavior)
+- **Grace windows (defaults 250ms each):** after the primary timeout fires, `timeoutGrace` delays entering late-success mode; during `lateSuccessWindow`, only an HTTP **200** callback completes the Future (non-200 and null results are ignored). If no qualifying success arrives, the Future completes with the same structured timeout JSON as a hard 60s miss. Override via optional `timeoutGrace` / `lateSuccessWindow` on `invokeIdentityCallback` (see `test/identity_web_callback_test.dart`).
 
 Upstream parsers: `lib/src/identity/identity_helpers.dart`, `lib/src/user.dart`.
 
@@ -70,6 +73,7 @@ Upstream parsers: `lib/src/identity/identity_helpers.dart`, `lib/src/user.dart`.
 Use `invokeIdentityCallback` in `identity_web.dart` for any new async JS callbacks:
 
 1. Store `.toJS` reference until Completer completes
-2. 60s timeout with structured error JSON
-3. Cancel timer on early completion
-4. Null callback ref in `finally`
+2. Primary `timeout` (default 60s) with structured error JSON on final failure
+3. Optional `timeoutGrace` then `lateSuccessWindow` for bounded late HTTP 200 success (defaults 250ms each; cancel grace when JS callback runs)
+4. Cancel timers on early completion
+5. Null callback ref in `finally`

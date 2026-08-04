@@ -43,4 +43,9 @@ final class InitializeOptionsParserTests: XCTestCase {
     let error = InitializeOptionsParser.validateBootstrapIdentities(["7": String(repeating: "x", count: 257)])
     XCTAssertEqual(error, "bootstrapIdentityRequest value exceeds maximum length.")
   }
+
+  func testValidateBootstrapIdentities_rejectsDuplicateIntegerKeys() {
+    let error = InitializeOptionsParser.validateBootstrapIdentities(["1": "first", "01": "second"])
+    XCTAssertEqual(error, "bootstrapIdentityRequest contains duplicate identity keys.")
+  }
 }

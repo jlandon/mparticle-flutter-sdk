@@ -17,9 +17,14 @@ internal object InitializeOptionsParser {
     if (identityMap.size > MAX_BOOTSTRAP_IDENTITIES) {
       return "bootstrapIdentityRequest exceeds maximum identity count."
     }
+    val parsedKeys = mutableSetOf<Int>()
     for ((key, value) in identityMap) {
-      if (key.toIntOrNull() == null) {
+      val intKey = key.toIntOrNull()
+      if (intKey == null) {
         return "bootstrapIdentityRequest contains invalid identity keys."
+      }
+      if (!parsedKeys.add(intKey)) {
+        return "bootstrapIdentityRequest contains duplicate identity keys."
       }
       if (value.isBlank()) {
         return "bootstrapIdentityRequest contains empty values."

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:js_interop';
 
 import 'package:mparticle_flutter_sdk/src/web_helpers/js_bridge.dart';
+import 'package:mparticle_flutter_sdk/src/web_helpers/user_lookup.dart';
 import 'package:mparticle_flutter_sdk/src/web_helpers/web_identity_helpers.dart';
 
 String getMpid({
@@ -10,8 +11,10 @@ String getMpid({
   required JSObject identity,
 }) {
   final currentUser = bridge.callMethodVarArgs(identity, 'getCurrentUser', []);
-  final mpid =
-      bridge.callMethodVarArgs(currentUser! as JSObject, 'getMPID', []);
+  if (currentUser == null || currentUser.isUndefinedOrNull) {
+    return '';
+  }
+  final mpid = bridge.callMethodVarArgs(currentUser as JSObject, 'getMPID', []);
   return mpid?.dartify()?.toString() ?? '';
 }
 
@@ -20,11 +23,10 @@ String getUserAttributes({
   required JSObject identity,
   required String mpid,
 }) {
-  final user = bridge.callMethodVarArgs(
-    identity,
-    'getUser',
-    [bridge.jsifyValue(mpid)!],
-  ) as JSObject;
+  final user = userForMpid(bridge: bridge, identity: identity, mpid: mpid);
+  if (user == null) {
+    return '{}';
+  }
 
   final jsAttributes = bridge.callMethodVarArgs(
     user,
@@ -40,20 +42,18 @@ String getUserIdentities({
   required JSObject identity,
   required String mpid,
 }) {
-  final user = bridge.callMethodVarArgs(
-    identity,
-    'getUser',
-    [bridge.jsifyValue(mpid)!],
-  ) as JSObject;
+  final user = userForMpid(bridge: bridge, identity: identity, mpid: mpid);
+  if (user == null) {
+    return '{}';
+  }
 
-  final jsIdentities = bridge.callMethodVarArgs(
-    user,
-    'getUserIdentities',
-    [],
-  ) as JSObject;
+  final jsIdentities =
+      bridge.callMethodVarArgs(user, 'getUserIdentities', []) as JSObject;
 
-  final userIdentitiesValue =
-      bridge.getProperty(jsIdentities, 'userIdentities');
+  final userIdentitiesValue = bridge.getProperty(
+    jsIdentities,
+    'userIdentities',
+  );
   final dartified = bridge.jsDartify(userIdentitiesValue);
   if (dartified is Map) {
     return jsonEncode(identitiesNameMapToStringKeyMap(dartified));
@@ -72,11 +72,14 @@ void setUserAttribute({
   required JSObject identity,
   required Map<dynamic, dynamic> arguments,
 }) {
-  final user = bridge.callMethodVarArgs(
-    identity,
-    'getUser',
-    [bridge.jsifyValue(arguments['mpid'])!],
-  ) as JSObject;
+  final user = userForMpid(
+    bridge: bridge,
+    identity: identity,
+    mpid: arguments['mpid'],
+  );
+  if (user == null) {
+    throwUserNotFound();
+  }
 
   bridge.callMethodVarArgs(user, 'setUserAttribute', [
     bridge.jsifyValue(arguments['attributeKey']),
@@ -89,11 +92,14 @@ void removeUserAttribute({
   required JSObject identity,
   required Map<dynamic, dynamic> arguments,
 }) {
-  final user = bridge.callMethodVarArgs(
-    identity,
-    'getUser',
-    [bridge.jsifyValue(arguments['mpid'])!],
-  ) as JSObject;
+  final user = userForMpid(
+    bridge: bridge,
+    identity: identity,
+    mpid: arguments['mpid'],
+  );
+  if (user == null) {
+    throwUserNotFound();
+  }
 
   bridge.callMethodVarArgs(user, 'removeUserAttribute', [
     bridge.jsifyValue(arguments['attributeKey']),
@@ -105,11 +111,14 @@ void setUserAttributeArray({
   required JSObject identity,
   required Map<dynamic, dynamic> arguments,
 }) {
-  final user = bridge.callMethodVarArgs(
-    identity,
-    'getUser',
-    [bridge.jsifyValue(arguments['mpid'])!],
-  ) as JSObject;
+  final user = userForMpid(
+    bridge: bridge,
+    identity: identity,
+    mpid: arguments['mpid'],
+  );
+  if (user == null) {
+    throwUserNotFound();
+  }
 
   bridge.callMethodVarArgs(user, 'setUserAttributeList', [
     bridge.jsifyValue(arguments['attributeKey']),
@@ -122,11 +131,14 @@ void setUserTag({
   required JSObject identity,
   required Map<dynamic, dynamic> arguments,
 }) {
-  final user = bridge.callMethodVarArgs(
-    identity,
-    'getUser',
-    [bridge.jsifyValue(arguments['mpid'])!],
-  ) as JSObject;
+  final user = userForMpid(
+    bridge: bridge,
+    identity: identity,
+    mpid: arguments['mpid'],
+  );
+  if (user == null) {
+    throwUserNotFound();
+  }
 
   bridge.callMethodVarArgs(user, 'setUserTag', [
     bridge.jsifyValue(arguments['attributeKey']),

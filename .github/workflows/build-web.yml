@@ -2,6 +2,9 @@
 #
 # Prerequisite: repository variable vars.FLUTTER_VERSION must be >= 3.44.0
 # (matches pubspec minimum for Wasm-compatible interop).
+#
+# Root plugin `flutter test` runs in test.yml when this workflow is chained
+# (pull-request, release). This job adds browser tests, example tests, and web builds.
 
 name: Build Web
 
@@ -27,25 +30,17 @@ jobs:
           flutter-version: ${{ vars.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - name: Verify Flutter version floor (>= 3.44.0)
-        run: |
-          set -euo pipefail
-          FLUTTER_VER=$(flutter --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-          echo "Detected Flutter $FLUTTER_VER"
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$FLUTTER_VER"
-          if [ "$MAJOR" -lt 3 ] || { [ "$MAJOR" -eq 3 ] && [ "$MINOR" -lt 44 ]; }; then
-            echo "Flutter $FLUTTER_VER is below required 3.44.0. Update vars.FLUTTER_VERSION."
-            exit 1
-          fi
+      - name: Verify Flutter version floor
+        uses: ./.github/actions/verify-flutter-floor
       - name: Install plugin dependencies
         run: flutter pub get
       - name: Install example dependencies
         working-directory: example
         run: flutter pub get
-      - name: Test plugin (unit)
-        run: flutter test
       - name: Test plugin identity callback (browser)
         run: flutter test --platform chrome test/identity_web_callback_test.dart
+      - name: Test plugin web init readiness (browser)
+        run: flutter test --platform chrome test/web_init_readiness_test.dart
       - name: Test example
         working-directory: example
         run: flutter test

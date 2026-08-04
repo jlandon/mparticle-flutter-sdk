@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - iOS `InitializeOptionsParser` SPM target with unit tests; Android URL validation unit tests wired into CI.
 - Web: Wasm-compatible JS interop migration (`dart:js` → `dart:js_interop`).
 - Web: `MP_WEB_*` platform error codes for snippet, readiness, and namespace failures.
-- Web: identity callback 60-second timeout (structured `-1` JSON envelope).
+- Web: identity callback 60-second timeout (structured `-1` JSON envelope), with default 250ms `timeoutGrace` and `lateSuccessWindow` for bounded late HTTP 200 success after the watchdog (see [docs/web-architecture.md](./docs/web-architecture.md)).
 
 ### Changed
 
@@ -47,6 +47,7 @@ See [MIGRATING.md](./MIGRATING.md#web--wasm-30) and [docs/web-smoke-checklist.md
 - **BREAKING**: iOS `isInitialized` now reflects actual SDK startup (was always `true` in 2.x).
 - **BREAKING**: Minimum Flutter version raised to `3.44.0`.
 - **BREAKING**: Android Rokt event subscriptions require `MainActivity` to extend `FlutterFragmentActivity` (see [MIGRATING.md](./MIGRATING.md#android-rokt-events); otherwise `MP_ROKT_LIFECYCLE_UNAVAILABLE`).
+- **BREAKING**: `Rokt.events(...)` returns `Future<void>` — await before `selectPlacements` / `selectShoppableAds` (see [MIGRATING.md — Rokt (3.0+)](./MIGRATING.md#rokt-30)).
 - iOS plugin sources moved to `ios/mparticle_flutter_sdk/Sources/`.
 
 See [MIGRATING.md](./MIGRATING.md) for the 2.x → 3.0 upgrade guide.

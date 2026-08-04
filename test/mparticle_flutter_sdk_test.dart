@@ -26,13 +26,10 @@ void main() {
     MparticleFlutterSdk.resetForTest();
     mp = MparticleFlutterSdk.testInstance();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(
-      channel,
-      (MethodCall call) async {
-        methodCall = call;
-        return null;
-      },
-    );
+        .setMockMethodCallHandler(channel, (MethodCall call) async {
+          methodCall = call;
+          return null;
+        });
   });
 
   tearDown(() {
@@ -58,26 +55,25 @@ void main() {
     test('empty credentials throw MP_INIT_INVALID_CREDENTIALS', () {
       expect(
         () => MparticleOptions(apiKey: ' ', apiSecret: 'x').validate(),
-        throwsA(isA<MparticleInitException>().having(
-          (e) => e.code,
-          'code',
-          MparticleInitErrorCodes.invalidCredentials,
-        )),
+        throwsA(
+          isA<MparticleInitException>().having(
+            (e) => e.code,
+            'code',
+            MparticleInitErrorCodes.invalidCredentials,
+          ),
+        ),
       );
     });
 
     test('initialize invokes channel with wire payload', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          methodCall = call;
-          if (call.method == 'initialize') {
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            methodCall = call;
+            if (call.method == 'initialize') {
+              return null;
+            }
             return null;
-          }
-          return null;
-        },
-      );
+          });
 
       MparticleFlutterSdk.resetForTest();
       final sdk = await MparticleFlutterSdk.initialize(
@@ -95,11 +91,13 @@ void main() {
           apiSecret: 'secret',
           customBaseUrl: 'http://insecure.example',
         ).validate(),
-        throwsA(isA<MparticleInitException>().having(
-          (e) => e.code,
-          'code',
-          MparticleInitErrorCodes.invalidBaseUrl,
-        )),
+        throwsA(
+          isA<MparticleInitException>().having(
+            (e) => e.code,
+            'code',
+            MparticleInitErrorCodes.invalidBaseUrl,
+          ),
+        ),
       );
     });
 
@@ -110,11 +108,13 @@ void main() {
           apiSecret: 'secret',
           customBaseUrl: 'https://',
         ).validate(),
-        throwsA(isA<MparticleInitException>().having(
-          (e) => e.code,
-          'code',
-          MparticleInitErrorCodes.invalidBaseUrl,
-        )),
+        throwsA(
+          isA<MparticleInitException>().having(
+            (e) => e.code,
+            'code',
+            MparticleInitErrorCodes.invalidBaseUrl,
+          ),
+        ),
       );
     });
 
@@ -161,16 +161,13 @@ void main() {
     test('second initialize with same apiKey returns same instance', () async {
       var initCallCount = 0;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          if (call.method == 'initialize') {
-            initCallCount++;
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            if (call.method == 'initialize') {
+              initCallCount++;
+              return null;
+            }
             return null;
-          }
-          return null;
-        },
-      );
+          });
 
       MparticleFlutterSdk.resetForTest();
       final options = MparticleOptions(apiKey: 'key-a', apiSecret: 'secret');
@@ -183,16 +180,13 @@ void main() {
 
     test('concurrent initialize success coalesces to one instance', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          if (call.method == 'initialize') {
-            await Future<void>.delayed(const Duration(milliseconds: 50));
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            if (call.method == 'initialize') {
+              await Future<void>.delayed(const Duration(milliseconds: 50));
+              return null;
+            }
             return null;
-          }
-          return null;
-        },
-      );
+          });
 
       MparticleFlutterSdk.resetForTest();
       final options = MparticleOptions(apiKey: 'key', apiSecret: 'secret');
@@ -203,34 +197,33 @@ void main() {
       expect(identical(results[0], results[1]), isTrue);
     });
 
-    test('in-flight initialize with different apiKey throws already started',
-        () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          if (call.method == 'initialize') {
-            await Future<void>.delayed(const Duration(milliseconds: 100));
-            return null;
-          }
-          return null;
-        },
-      );
+    test(
+      'in-flight initialize with different apiKey throws already started',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              if (call.method == 'initialize') {
+                await Future<void>.delayed(const Duration(milliseconds: 100));
+                return null;
+              }
+              return null;
+            });
 
-      MparticleFlutterSdk.resetForTest();
-      final first = MparticleFlutterSdk.initialize(
-        MparticleOptions(apiKey: 'key-a', apiSecret: 'secret'),
-      );
+        MparticleFlutterSdk.resetForTest();
+        final first = MparticleFlutterSdk.initialize(
+          MparticleOptions(apiKey: 'key-a', apiSecret: 'secret'),
+        );
 
-      await expectLater(
-        MparticleFlutterSdk.initialize(
-          MparticleOptions(apiKey: 'key-b', apiSecret: 'secret'),
-        ),
-        throwsA(isA<MparticleAlreadyInitializedException>()),
-      );
+        await expectLater(
+          MparticleFlutterSdk.initialize(
+            MparticleOptions(apiKey: 'key-b', apiSecret: 'secret'),
+          ),
+          throwsA(isA<MparticleAlreadyInitializedException>()),
+        );
 
-      await first;
-    });
+        await first;
+      },
+    );
 
     test('bootstrapIdentityRequest rejects more than ten identities', () {
       final identities = {
@@ -243,11 +236,13 @@ void main() {
           apiSecret: 'secret',
           bootstrapIdentityRequest: identities,
         ).validate(),
-        throwsA(isA<MparticleInitException>().having(
-          (e) => e.code,
-          'code',
-          MparticleInitErrorCodes.invalidOptions,
-        )),
+        throwsA(
+          isA<MparticleInitException>().having(
+            (e) => e.code,
+            'code',
+            MparticleInitErrorCodes.invalidOptions,
+          ),
+        ),
       );
     });
 
@@ -258,11 +253,13 @@ void main() {
           apiSecret: 'secret',
           bootstrapIdentityRequest: {IdentityType.Email: '  '},
         ).validate(),
-        throwsA(isA<MparticleInitException>().having(
-          (e) => e.code,
-          'code',
-          MparticleInitErrorCodes.invalidOptions,
-        )),
+        throwsA(
+          isA<MparticleInitException>().having(
+            (e) => e.code,
+            'code',
+            MparticleInitErrorCodes.invalidOptions,
+          ),
+        ),
       );
     });
 
@@ -271,17 +268,36 @@ void main() {
         () => MparticleOptions(
           apiKey: 'key',
           apiSecret: 'secret',
-          bootstrapIdentityRequest: {
-            IdentityType.Email: 'x' * 257,
-          },
+          bootstrapIdentityRequest: {IdentityType.Email: 'x' * 257},
         ).validate(),
-        throwsA(isA<MparticleInitException>().having(
-          (e) => e.code,
-          'code',
-          MparticleInitErrorCodes.invalidOptions,
-        )),
+        throwsA(
+          isA<MparticleInitException>().having(
+            (e) => e.code,
+            'code',
+            MparticleInitErrorCodes.invalidOptions,
+          ),
+        ),
       );
     });
+
+    test(
+      'bootstrapIdentityRequest accepts ten identities at max value length',
+      () {
+        final identities = {
+          for (var i = 0; i < 10; i++) IdentityType.values[i]: 'x' * 256,
+        };
+        final options = MparticleOptions(
+          apiKey: 'key',
+          apiSecret: 'secret',
+          bootstrapIdentityRequest: identities,
+        );
+        expect(() => options.validate(), returnsNormally);
+        final wire = options.toJson()['bootstrapIdentityRequest'] as Map;
+        final wireIdentities = wire['identities'] as Map;
+        expect(wireIdentities.length, 10);
+        expect(wireIdentities.values.first.toString().length, 256);
+      },
+    );
 
     test('invalid urlScheme throws MP_INIT_INVALID_OPTIONS', () {
       expect(
@@ -295,11 +311,13 @@ void main() {
             ),
           ),
         ).validate(),
-        throwsA(isA<MparticleInitException>().having(
-          (e) => e.code,
-          'code',
-          MparticleInitErrorCodes.invalidOptions,
-        )),
+        throwsA(
+          isA<MparticleInitException>().having(
+            (e) => e.code,
+            'code',
+            MparticleInitErrorCodes.invalidOptions,
+          ),
+        ),
       );
     });
 
@@ -324,14 +342,9 @@ void main() {
         apiSecret: 'secret',
         bootstrapIdentityRequest: {IdentityType.Email: 'test@example.com'},
       ).toJson();
-      expect(
-        json['bootstrapIdentityRequest'],
-        {
-          'identities': {
-            IdentityType.Email.index.toString(): 'test@example.com'
-          }
-        },
-      );
+      expect(json['bootstrapIdentityRequest'], {
+        'identities': {IdentityType.Email.index.toString(): 'test@example.com'},
+      });
     });
 
     test('mapInitExceptionFromPlatform preserves native message', () {
@@ -346,10 +359,7 @@ void main() {
 
     test('mapInitExceptionFromPlatform maps empty code to invalidOptions', () {
       final mapped = mapInitExceptionFromPlatform(
-        PlatformException(
-          code: '',
-          message: 'Native init failed without code',
-        ),
+        PlatformException(code: '', message: 'Native init failed without code'),
       );
       expect(mapped.code, MparticleInitErrorCodes.invalidOptions);
       expect(mapped.message, 'Native init failed without code');
@@ -360,97 +370,97 @@ void main() {
       expect(() => MparticleFlutterSdk.instance, throwsStateError);
     });
 
-    test('waitUntilReady throws StateError on mobile before initialize',
-        () async {
-      MparticleFlutterSdk.resetForTest();
-      await expectLater(
-        MparticleFlutterSdk.waitUntilReady(),
-        throwsA(isA<StateError>()),
-      );
-    });
-
-    test('second initialize with different apiKey throws already started',
-        () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          if (call.method == 'initialize') {
-            return null;
-          }
-          return null;
-        },
-      );
-
-      MparticleFlutterSdk.resetForTest();
-      await MparticleFlutterSdk.initialize(
-        MparticleOptions(apiKey: 'key-a', apiSecret: 'secret'),
-      );
-
-      await expectLater(
-        MparticleFlutterSdk.initialize(
-          MparticleOptions(apiKey: 'key-b', apiSecret: 'secret'),
-        ),
-        throwsA(isA<MparticleAlreadyInitializedException>()),
-      );
-    });
+    test(
+      'waitUntilReady throws StateError on mobile before initialize',
+      () async {
+        MparticleFlutterSdk.resetForTest();
+        await expectLater(
+          MparticleFlutterSdk.waitUntilReady(),
+          throwsA(isA<StateError>()),
+        );
+      },
+    );
 
     test(
-        'concurrent initialize waiters receive typed init exception on native failure',
-        () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          if (call.method == 'initialize') {
-            await Future<void>.delayed(const Duration(milliseconds: 50));
-            throw PlatformException(
-              code: MparticleInitErrorCodes.invalidOptions,
-              message: 'native failure',
-            );
-          }
-          return null;
-        },
-      );
+      'second initialize with different apiKey throws already started',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              if (call.method == 'initialize') {
+                return null;
+              }
+              return null;
+            });
 
-      MparticleFlutterSdk.resetForTest();
-      final options = MparticleOptions(apiKey: 'key', apiSecret: 'secret');
-      final first = MparticleFlutterSdk.initialize(options);
-      final second = MparticleFlutterSdk.initialize(options);
+        MparticleFlutterSdk.resetForTest();
+        await MparticleFlutterSdk.initialize(
+          MparticleOptions(apiKey: 'key-a', apiSecret: 'secret'),
+        );
 
-      await expectLater(
-        first,
-        throwsA(isA<MparticleInitException>().having(
-          (e) => e.code,
-          'code',
-          MparticleInitErrorCodes.invalidOptions,
-        )),
-      );
-      await expectLater(
-        second,
-        throwsA(isA<MparticleInitException>().having(
-          (e) => e.code,
-          'code',
-          MparticleInitErrorCodes.invalidOptions,
-        )),
-      );
-    });
+        await expectLater(
+          MparticleFlutterSdk.initialize(
+            MparticleOptions(apiKey: 'key-b', apiSecret: 'secret'),
+          ),
+          throwsA(isA<MparticleAlreadyInitializedException>()),
+        );
+      },
+    );
+
+    test(
+      'concurrent initialize waiters receive typed init exception on native failure',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              if (call.method == 'initialize') {
+                await Future<void>.delayed(const Duration(milliseconds: 50));
+                throw PlatformException(
+                  code: MparticleInitErrorCodes.invalidOptions,
+                  message: 'native failure',
+                );
+              }
+              return null;
+            });
+
+        MparticleFlutterSdk.resetForTest();
+        final options = MparticleOptions(apiKey: 'key', apiSecret: 'secret');
+        final first = MparticleFlutterSdk.initialize(options);
+        final second = MparticleFlutterSdk.initialize(options);
+
+        await expectLater(
+          first,
+          throwsA(
+            isA<MparticleInitException>().having(
+              (e) => e.code,
+              'code',
+              MparticleInitErrorCodes.invalidOptions,
+            ),
+          ),
+        );
+        await expectLater(
+          second,
+          throwsA(
+            isA<MparticleInitException>().having(
+              (e) => e.code,
+              'code',
+              MparticleInitErrorCodes.invalidOptions,
+            ),
+          ),
+        );
+      },
+    );
 
     test('initialize timeout throws MP_INIT_TIMEOUT', () async {
       var initAttempt = 0;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          if (call.method == 'initialize') {
-            initAttempt++;
-            if (initAttempt == 1) {
-              await Future<void>.delayed(const Duration(seconds: 2));
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            if (call.method == 'initialize') {
+              initAttempt++;
+              if (initAttempt == 1) {
+                await Future<void>.delayed(const Duration(seconds: 2));
+              }
             }
-          }
-          return null;
-        },
-      );
+            return null;
+          });
 
       MparticleFlutterSdk.resetForTest();
       final options = MparticleOptions(
@@ -460,11 +470,13 @@ void main() {
       );
       await expectLater(
         MparticleFlutterSdk.initialize(options),
-        throwsA(isA<MparticleInitException>().having(
-          (e) => e.code,
-          'code',
-          MparticleInitErrorCodes.timeout,
-        )),
+        throwsA(
+          isA<MparticleInitException>().having(
+            (e) => e.code,
+            'code',
+            MparticleInitErrorCodes.timeout,
+          ),
+        ),
       );
 
       final sdk = await MparticleFlutterSdk.initialize(options);
@@ -474,120 +486,148 @@ void main() {
     });
 
     test(
-        'initialize succeeds when native reconciles already-started same apiKey',
-        () async {
-      var initCallCount = 0;
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          if (call.method == 'initialize') {
-            initCallCount++;
-            return null;
-          }
-          return null;
-        },
-      );
+      'initialize timeout reconciles when native isInitialized after watchdog',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              if (call.method == 'initialize') {
+                await Future<void>.delayed(const Duration(seconds: 2));
+              }
+              if (call.method == 'isInitialized') {
+                return true;
+              }
+              return null;
+            });
 
-      MparticleFlutterSdk.resetForTest();
-      final options =
-          MparticleOptions(apiKey: 'native-reconcile-key', apiSecret: 'secret');
-      final sdk = await MparticleFlutterSdk.initialize(options);
-
-      expect(sdk, isNotNull);
-      expect(initCallCount, 1);
-      expect(identical(sdk, MparticleFlutterSdk.instance), isTrue);
-    });
-
-    test('initialize throws when native already started with different apiKey',
-        () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          if (call.method == 'initialize') {
-            throw PlatformException(
-              code: MparticleInitErrorCodes.alreadyStarted,
-              message:
-                  'mParticle already initialized natively; remove AppDelegate start before Dart initialize()',
-            );
-          }
-          return null;
-        },
-      );
-
-      MparticleFlutterSdk.resetForTest();
-      await expectLater(
-        MparticleFlutterSdk.initialize(
-          MparticleOptions(apiKey: 'other-key', apiSecret: 'secret'),
-        ),
-        throwsA(isA<MparticleAlreadyInitializedException>().having(
-          (e) => e.message,
-          'message',
-          contains('AppDelegate'),
-        )),
-      );
-    });
+        MparticleFlutterSdk.resetForTest();
+        final options = MparticleOptions(
+          apiKey: 'key',
+          apiSecret: 'secret',
+          initTimeout: const Duration(seconds: 1),
+        );
+        final sdk = await MparticleFlutterSdk.initialize(options);
+        expect(sdk, isNotNull);
+        expect(identical(sdk, MparticleFlutterSdk.instance), isTrue);
+      },
+    );
 
     test(
-        'platform already started maps to MparticleAlreadyInitializedException',
-        () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          if (call.method == 'initialize') {
-            throw PlatformException(
-              code: MparticleInitErrorCodes.alreadyStarted,
-              message: 'already started',
-            );
-          }
-          return null;
-        },
-      );
+      'initialize succeeds when native reconciles already-started same apiKey',
+      () async {
+        var initCallCount = 0;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              if (call.method == 'initialize') {
+                initCallCount++;
+                return null;
+              }
+              return null;
+            });
 
-      MparticleFlutterSdk.resetForTest();
-      await expectLater(
-        MparticleFlutterSdk.initialize(
-          MparticleOptions(apiKey: 'key', apiSecret: 'secret'),
-        ),
-        throwsA(isA<MparticleAlreadyInitializedException>().having(
-          (e) => e.message,
-          'message',
-          'already started',
-        )),
-      );
-    });
+        MparticleFlutterSdk.resetForTest();
+        final options = MparticleOptions(
+          apiKey: 'native-reconcile-key',
+          apiSecret: 'secret',
+        );
+        final sdk = await MparticleFlutterSdk.initialize(options);
 
-    test('native init conflict preserves AppDelegate migration message',
-        () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          if (call.method == 'initialize') {
-            throw PlatformException(
-              code: MparticleInitErrorCodes.alreadyStarted,
-              message:
-                  'mParticle already initialized natively; remove AppDelegate start before Dart initialize()',
-            );
-          }
-          return null;
-        },
-      );
+        expect(sdk, isNotNull);
+        expect(initCallCount, 1);
+        expect(identical(sdk, MparticleFlutterSdk.instance), isTrue);
+      },
+    );
 
-      MparticleFlutterSdk.resetForTest();
-      await expectLater(
-        MparticleFlutterSdk.initialize(
-          MparticleOptions(apiKey: 'key', apiSecret: 'secret'),
-        ),
-        throwsA(isA<MparticleAlreadyInitializedException>().having(
-          (e) => e.message,
-          'message',
-          contains('AppDelegate'),
-        )),
-      );
-    });
+    test(
+      'initialize throws when native already started with different apiKey',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              if (call.method == 'initialize') {
+                throw PlatformException(
+                  code: MparticleInitErrorCodes.alreadyStarted,
+                  message:
+                      'mParticle already initialized natively; remove AppDelegate start before Dart initialize()',
+                );
+              }
+              return null;
+            });
+
+        MparticleFlutterSdk.resetForTest();
+        await expectLater(
+          MparticleFlutterSdk.initialize(
+            MparticleOptions(apiKey: 'other-key', apiSecret: 'secret'),
+          ),
+          throwsA(
+            isA<MparticleAlreadyInitializedException>().having(
+              (e) => e.message,
+              'message',
+              contains('AppDelegate'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'platform already started maps to MparticleAlreadyInitializedException',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              if (call.method == 'initialize') {
+                throw PlatformException(
+                  code: MparticleInitErrorCodes.alreadyStarted,
+                  message: 'already started',
+                );
+              }
+              return null;
+            });
+
+        MparticleFlutterSdk.resetForTest();
+        await expectLater(
+          MparticleFlutterSdk.initialize(
+            MparticleOptions(apiKey: 'key', apiSecret: 'secret'),
+          ),
+          throwsA(
+            isA<MparticleAlreadyInitializedException>().having(
+              (e) => e.message,
+              'message',
+              'already started',
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'native init conflict preserves AppDelegate migration message',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              if (call.method == 'initialize') {
+                throw PlatformException(
+                  code: MparticleInitErrorCodes.alreadyStarted,
+                  message:
+                      'mParticle already initialized natively; remove AppDelegate start before Dart initialize()',
+                );
+              }
+              return null;
+            });
+
+        MparticleFlutterSdk.resetForTest();
+        await expectLater(
+          MparticleFlutterSdk.initialize(
+            MparticleOptions(apiKey: 'key', apiSecret: 'secret'),
+          ),
+          throwsA(
+            isA<MparticleAlreadyInitializedException>().having(
+              (e) => e.message,
+              'message',
+              contains('AppDelegate'),
+            ),
+          ),
+        );
+      },
+    );
   });
 
   group('mParticle Dart API Layer', () {
@@ -607,30 +647,42 @@ void main() {
             'eventType': 3,
             'customAttributes': {'key1': 'value1'},
             'customFlags': {'flag1': 'value1'},
-            'shouldUploadEvent': null
+            'shouldUploadEvent': null,
           },
         ),
       );
     });
 
     test('log product action commerce event', () async {
-      final Product product1 =
-          Product(name: 'Orange', sku: '123abc', price: 5.0, quantity: 1);
-      final Product product2 =
-          Product(name: 'Apple', sku: '456abc', price: 10.5, quantity: 2);
+      final Product product1 = Product(
+        name: 'Orange',
+        sku: '123abc',
+        price: 5.0,
+        quantity: 1,
+      );
+      final Product product2 = Product(
+        name: 'Apple',
+        sku: '456abc',
+        price: 10.5,
+        quantity: 2,
+      );
       final TransactionAttributes transactionAttributes = TransactionAttributes(
-          transactionId: '123456',
-          affiliation: 'affiliation',
-          couponCode: '12412342',
-          shipping: 1.34,
-          tax: 43.232,
-          revenue: 242.2);
-      CommerceEvent commerceEvent = CommerceEvent.withProduct(
-          productActionType: ProductActionType.Purchase, product: product1)
-        ..products.add(product2)
-        ..transactionAttributes = transactionAttributes
-        ..currency = 'US'
-        ..screenName = 'One Click Purchase';
+        transactionId: '123456',
+        affiliation: 'affiliation',
+        couponCode: '12412342',
+        shipping: 1.34,
+        tax: 43.232,
+        revenue: 242.2,
+      );
+      CommerceEvent commerceEvent =
+          CommerceEvent.withProduct(
+              productActionType: ProductActionType.Purchase,
+              product: product1,
+            )
+            ..products.add(product2)
+            ..transactionAttributes = transactionAttributes
+            ..currency = 'US'
+            ..screenName = 'One Click Purchase';
       mp.logCommerceEvent(commerceEvent);
       expect(
         methodCall,
@@ -655,7 +707,7 @@ void main() {
               'productActionType': 8,
               'jsProductActionType': 6,
               'androidProductActionType': 'purchase',
-            }
+            },
           },
         ),
       );
@@ -663,21 +715,26 @@ void main() {
 
     test('log promotion commerce event', () async {
       final Promotion promotion1 = Promotion(
-          promotionId: '12312',
-          creative: 'Jennifer Slater',
-          name: 'BOGO Bonanza',
-          position: 'top');
+        promotionId: '12312',
+        creative: 'Jennifer Slater',
+        name: 'BOGO Bonanza',
+        position: 'top',
+      );
       final Promotion promotion2 = Promotion(
-          promotionId: '15632',
-          creative: 'Gregor Roman',
-          name: 'Eco Living',
-          position: 'mid');
+        promotionId: '15632',
+        creative: 'Gregor Roman',
+        name: 'Eco Living',
+        position: 'mid',
+      );
 
-      CommerceEvent commerceEvent = CommerceEvent.withPromotion(
-          promotionActionType: PromotionActionType.View, promotion: promotion1)
-        ..promotions.add(promotion2)
-        ..currency = 'US'
-        ..screenName = 'Promotion Screen Name';
+      CommerceEvent commerceEvent =
+          CommerceEvent.withPromotion(
+              promotionActionType: PromotionActionType.View,
+              promotion: promotion1,
+            )
+            ..promotions.add(promotion2)
+            ..currency = 'US'
+            ..screenName = 'Promotion Screen Name';
       mp.logCommerceEvent(commerceEvent);
       expect(
         methodCall,
@@ -691,14 +748,14 @@ void main() {
                   'promotionId': '12312',
                   'creative': 'Jennifer Slater',
                   'name': 'BOGO Bonanza',
-                  'position': 'top'
+                  'position': 'top',
                 },
                 {
                   'promotionId': '15632',
                   'creative': 'Gregor Roman',
                   'name': 'Eco Living',
-                  'position': 'mid'
-                }
+                  'position': 'mid',
+                },
               ],
               'impressions': [],
               'transactionAttributes': null,
@@ -714,20 +771,28 @@ void main() {
               'customFlags': null,
               'promotionActionType': 1,
               'androidPromotionActionType': 'view',
-              'jsPromotionActionType': 1
-            }
+              'jsPromotionActionType': 1,
+            },
           },
         ),
       );
     });
 
     test('log impression commerce event', () async {
-      final Product product1 =
-          Product(name: 'Orange', sku: '123abc', price: 2.4, quantity: 1);
-      final Impression impression1 =
-          Impression(impressionListName: 'produce', products: [product1]);
-      final Impression impression2 =
-          Impression(impressionListName: 'citrus', products: [product1]);
+      final Product product1 = Product(
+        name: 'Orange',
+        sku: '123abc',
+        price: 2.4,
+        quantity: 1,
+      );
+      final Impression impression1 = Impression(
+        impressionListName: 'produce',
+        products: [product1],
+      );
+      final Impression impression2 = Impression(
+        impressionListName: 'citrus',
+        products: [product1],
+      );
       CommerceEvent commerceEvent =
           CommerceEvent.withImpression(impression: impression1)
             ..impressions.add(impression2)
@@ -754,7 +819,7 @@ void main() {
               'shouldUploadEvent': null,
               'customAttributes': null,
               'customFlags': null,
-            }
+            },
           },
         ),
       );
@@ -765,23 +830,28 @@ void main() {
 
       expect(
         methodCall,
-        isMethodCall('logError', arguments: {
-          'eventName': 'Error',
-          'customAttributes': {'key1': 'value1'},
-        }),
+        isMethodCall(
+          'logError',
+          arguments: {
+            'eventName': 'Error',
+            'customAttributes': {'key1': 'value1'},
+          },
+        ),
       );
     });
 
     test('log push registration', () async {
       mp.logPushRegistration(
-          pushToken: 'pushToken123', senderId: 'senderId123');
+        pushToken: 'pushToken123',
+        senderId: 'senderId123',
+      );
 
       expect(
         methodCall,
-        isMethodCall('logPushRegistration', arguments: {
-          'pushToken': 'pushToken123',
-          'senderId': 'senderId123',
-        }),
+        isMethodCall(
+          'logPushRegistration',
+          arguments: {'pushToken': 'pushToken123', 'senderId': 'senderId123'},
+        ),
       );
     });
 
@@ -793,22 +863,28 @@ void main() {
 
       expect(
         methodCall,
-        isMethodCall('logScreenEvent', arguments: {
-          'eventName': 'Screen event logged',
-          'customAttributes': {'key1': 'value1'},
-          'customFlags': {'flag1': 'value1'},
-        }),
+        isMethodCall(
+          'logScreenEvent',
+          arguments: {
+            'eventName': 'Screen event logged',
+            'customAttributes': {'key1': 'value1'},
+            'customFlags': {'flag1': 'value1'},
+          },
+        ),
       );
     });
 
     test('set att status', () async {
       mp.setATTStatus(
-          attStatus: MPATTAuthorizationStatus.Authorized,
-          timestampInMillis: 1000);
+        attStatus: MPATTAuthorizationStatus.Authorized,
+        timestampInMillis: 1000,
+      );
       expect(
         methodCall,
-        isMethodCall('setATTStatus',
-            arguments: {'attStatus': 3, 'timestampInMillis': 1000}),
+        isMethodCall(
+          'setATTStatus',
+          arguments: {'attStatus': 3, 'timestampInMillis': 1000},
+        ),
       );
     });
 
@@ -822,72 +898,91 @@ void main() {
 
     test('upload', () async {
       await mp.upload();
-      expect(
-        methodCall,
-        isMethodCall('upload', arguments: null),
-      );
+      expect(methodCall, isMethodCall('upload', arguments: null));
     });
 
-    test('fire-and-forget channel methods complete when native returns true',
-        () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          methodCall = call;
-          return true;
-        },
-      );
+    test(
+      'fire-and-forget channel methods complete when native returns true',
+      () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+              methodCall = call;
+              return true;
+            });
 
-      final event = MPEvent(
-        eventName: 'Clicked Search Bar',
-        eventType: EventType.Search,
-      );
+        final event = MPEvent(
+          eventName: 'Clicked Search Bar',
+          eventType: EventType.Search,
+        );
 
-      await mp.logEvent(event).timeout(const Duration(seconds: 1),
+        await mp
+            .logEvent(event)
+            .timeout(
+              const Duration(seconds: 1),
+              onTimeout: () {
+                fail('logEvent did not complete');
+              },
+            );
+
+        await mp
+            .setOptOut(false)
+            .timeout(
+              const Duration(seconds: 1),
+              onTimeout: () {
+                fail('first setOptOut did not complete');
+              },
+            );
+        await mp
+            .setOptOut(true)
+            .timeout(
+              const Duration(seconds: 1),
+              onTimeout: () {
+                fail('second setOptOut did not complete');
+              },
+            );
+
+        await mp
+            .setATTStatus(
+              attStatus: MPATTAuthorizationStatus.Authorized,
+              timestampInMillis: 1000,
+            )
+            .timeout(
+              const Duration(seconds: 1),
+              onTimeout: () {
+                fail('setATTStatus did not complete');
+              },
+            );
+
+        await mp.upload().timeout(
+          const Duration(seconds: 1),
           onTimeout: () {
-        fail('logEvent did not complete');
-      });
-
-      await mp.setOptOut(false).timeout(const Duration(seconds: 1),
-          onTimeout: () {
-        fail('first setOptOut did not complete');
-      });
-      await mp.setOptOut(true).timeout(const Duration(seconds: 1),
-          onTimeout: () {
-        fail('second setOptOut did not complete');
-      });
-
-      await mp
-          .setATTStatus(
-        attStatus: MPATTAuthorizationStatus.Authorized,
-        timestampInMillis: 1000,
-      )
-          .timeout(const Duration(seconds: 1), onTimeout: () {
-        fail('setATTStatus did not complete');
-      });
-
-      await mp.upload().timeout(const Duration(seconds: 1), onTimeout: () {
-        fail('upload did not complete');
-      });
-    });
+            fail('upload did not complete');
+          },
+        );
+      },
+    );
 
     test('alias users', () async {
       var userAliasRequest = AliasRequest(
-          sourceMpid: 'sourceMPID', destinationMpid: 'destinationMPID');
+        sourceMpid: 'sourceMPID',
+        destinationMpid: 'destinationMPID',
+      );
       userAliasRequest.setStartTime(123);
       userAliasRequest.setEndTime(456);
       mp.identity.aliasUsers(aliasRequest: userAliasRequest);
       expect(
         methodCall,
-        isMethodCall('aliasUsers', arguments: {
-          "aliasRequest": {
-            'sourceMpid': 'sourceMPID',
-            'destinationMpid': 'destinationMPID',
-            'startTime': 123,
-            'endTime': 456,
-          }
-        }),
+        isMethodCall(
+          'aliasUsers',
+          arguments: {
+            "aliasRequest": {
+              'sourceMpid': 'sourceMPID',
+              'destinationMpid': 'destinationMPID',
+              'startTime': 123,
+              'endTime': 456,
+            },
+          },
+        ),
       );
     });
   });
@@ -895,35 +990,34 @@ void main() {
   group('Identity API', () {
     test('identify with identityRequest', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          methodCall = call;
-          return '{"mpid": "123"}';
-        },
-      );
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            methodCall = call;
+            return '{"mpid": "123"}';
+          });
 
       IdentityRequest request = IdentityRequest()
         ..setIdentity(
-            identityType: IdentityType.Email, value: 'test@example.com');
+          identityType: IdentityType.Email,
+          value: 'test@example.com',
+        );
       await mp.identity.identify(identityRequest: request);
       expect(
         methodCall,
-        isMethodCall('identify', arguments: {
-          'identityRequest': {7: 'test@example.com'}
-        }),
+        isMethodCall(
+          'identify',
+          arguments: {
+            'identityRequest': {7: 'test@example.com'},
+          },
+        ),
       );
     });
 
     test('identify without identityRequest sends empty map', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          methodCall = call;
-          return '{"mpid": "123"}';
-        },
-      );
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            methodCall = call;
+            return '{"mpid": "123"}';
+          });
 
       await mp.identity.identify();
       expect(
@@ -934,34 +1028,33 @@ void main() {
 
     test('login with identityRequest', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          methodCall = call;
-          return '{"mpid": "123"}';
-        },
-      );
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            methodCall = call;
+            return '{"mpid": "123"}';
+          });
       IdentityRequest request = IdentityRequest()
         ..setIdentity(
-            identityType: IdentityType.Email, value: 'login@example.com');
+          identityType: IdentityType.Email,
+          value: 'login@example.com',
+        );
       await mp.identity.login(identityRequest: request);
       expect(
         methodCall,
-        isMethodCall('login', arguments: {
-          'identityRequest': {7: 'login@example.com'}
-        }),
+        isMethodCall(
+          'login',
+          arguments: {
+            'identityRequest': {7: 'login@example.com'},
+          },
+        ),
       );
     });
 
     test('login without identityRequest sends empty map', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          methodCall = call;
-          return '{"mpid": "123"}';
-        },
-      );
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            methodCall = call;
+            return '{"mpid": "123"}';
+          });
 
       await mp.identity.login();
       expect(
@@ -972,13 +1065,10 @@ void main() {
 
     test('logout without identityRequest sends empty map', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          methodCall = call;
-          return '{"mpid": "123"}';
-        },
-      );
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            methodCall = call;
+            return '{"mpid": "123"}';
+          });
 
       await mp.identity.logout();
       expect(
@@ -989,44 +1079,46 @@ void main() {
 
     test('modify with identityRequest', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          methodCall = call;
-          return '{"mpid": "123"}';
-        },
-      );
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            methodCall = call;
+            return '{"mpid": "123"}';
+          });
 
       IdentityRequest request = IdentityRequest()
         ..setIdentity(
-            identityType: IdentityType.Email, value: 'new@example.com');
+          identityType: IdentityType.Email,
+          value: 'new@example.com',
+        );
       await mp.identity.modify(identityRequest: request);
       expect(
         methodCall,
-        isMethodCall('modify', arguments: {
-          'identityRequest': {7: 'new@example.com'}
-        }),
+        isMethodCall(
+          'modify',
+          arguments: {
+            'identityRequest': {7: 'new@example.com'},
+          },
+        ),
       );
     });
 
     test('logout with identityRequest', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(
-        channel,
-        (MethodCall call) async {
-          methodCall = call;
-          return '{"mpid": "123"}';
-        },
-      );
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+            methodCall = call;
+            return '{"mpid": "123"}';
+          });
 
       IdentityRequest request = IdentityRequest()
         ..setIdentity(identityType: IdentityType.CustomerId, value: 'user-123');
       await mp.identity.logout(identityRequest: request);
       expect(
         methodCall,
-        isMethodCall('logout', arguments: {
-          'identityRequest': {1: 'user-123'}
-        }),
+        isMethodCall(
+          'logout',
+          arguments: {
+            'identityRequest': {1: 'user-123'},
+          },
+        ),
       );
     });
   });
@@ -1034,68 +1126,86 @@ void main() {
   group('Rokt API', () {
     test('rokt select placements', () async {
       final roktConfig = RoktConfig(
-          colorMode: ColorMode.dark,
-          cacheConfig: CacheConfig(
-              cacheDurationInSeconds: 100,
-              cacheAttributes: {'key1': 'value1'}));
+        colorMode: ColorMode.dark,
+        cacheConfig: CacheConfig(
+          cacheDurationInSeconds: 100,
+          cacheAttributes: {'key1': 'value1'},
+        ),
+      );
       await mp.rokt.selectPlacements(
-          identifier: 'placement1',
-          attributes: {'attr1': 'val1'},
-          roktConfig: roktConfig,
-          fontFilePathMap: {'font1': 'path1'});
+        identifier: 'placement1',
+        attributes: {'attr1': 'val1'},
+        roktConfig: roktConfig,
+        fontFilePathMap: {'font1': 'path1'},
+      );
 
       expect(
-          methodCall,
-          isMethodCall('roktSelectPlacements', arguments: {
+        methodCall,
+        isMethodCall(
+          'roktSelectPlacements',
+          arguments: {
             'placementId': 'placement1',
             'attributes': {'attr1': 'val1'},
             'config': {
               'colorMode': 'dark',
               'cacheConfig': {
                 'cacheDurationInSeconds': 100,
-                'cacheAttributes': {'key1': 'value1'}
-              }
+                'cacheAttributes': {'key1': 'value1'},
+              },
             },
             'fontFilePathMap': {'font1': 'path1'},
-          }));
+          },
+        ),
+      );
     });
 
     test('rokt select placements with placeholders', () async {
       mp.attachPlaceholder(id: 1, name: "placeholder1");
-      await mp.rokt.selectPlacements(
-        identifier: 'placement1',
-      );
+      await mp.rokt.selectPlacements(identifier: 'placement1');
 
       expect(
-          methodCall,
-          isMethodCall('roktSelectPlacements', arguments: {
+        methodCall,
+        isMethodCall(
+          'roktSelectPlacements',
+          arguments: {
             'placementId': 'placement1',
             'attributes': null,
             'config': null,
             'fontFilePathMap': null,
             'placeholders': {1: 'placeholder1'},
-          }));
+          },
+        ),
+      );
     });
 
     test('rokt purchase finalized', () async {
       await mp.rokt.purchaseFinalized(
-          placementId: 'placement1', catalogItemId: 'catalog1', success: true);
+        placementId: 'placement1',
+        catalogItemId: 'catalog1',
+        success: true,
+      );
 
       expect(
-          methodCall,
-          isMethodCall('roktPurchaseFinalized', arguments: {
+        methodCall,
+        isMethodCall(
+          'roktPurchaseFinalized',
+          arguments: {
             'placementId': 'placement1',
             'catalogItemId': 'catalog1',
             'success': true,
-          }));
+          },
+        ),
+      );
     });
 
     test('rokt select shoppable ads', () async {
       final roktConfig = RoktConfig(
-          colorMode: ColorMode.dark,
-          cacheConfig: CacheConfig(
-              cacheDurationInSeconds: 100,
-              cacheAttributes: {'key1': 'value1'}));
+        colorMode: ColorMode.dark,
+        cacheConfig: CacheConfig(
+          cacheDurationInSeconds: 100,
+          cacheAttributes: {'key1': 'value1'},
+        ),
+      );
 
       await mp.rokt.selectShoppableAds(
         identifier: 'identifier1',
@@ -1104,18 +1214,22 @@ void main() {
       );
 
       expect(
-          methodCall,
-          isMethodCall('roktSelectShoppableAds', arguments: {
+        methodCall,
+        isMethodCall(
+          'roktSelectShoppableAds',
+          arguments: {
             'identifier': 'identifier1',
             'attributes': {'attr1': 'val1'},
             'config': {
               'colorMode': 'dark',
               'cacheConfig': {
                 'cacheDurationInSeconds': 100,
-                'cacheAttributes': {'key1': 'value1'}
-              }
+                'cacheAttributes': {'key1': 'value1'},
+              },
             },
-          }));
+          },
+        ),
+      );
     });
   });
 
@@ -1124,8 +1238,10 @@ void main() {
       expect(MparticleWebErrorCodes.snippetMissing, 'MP_WEB_SNIPPET_MISSING');
       expect(MparticleWebErrorCodes.notReady, 'MP_WEB_NOT_READY');
       expect(MparticleWebErrorCodes.interopFailed, 'MP_WEB_INTEROP_FAILED');
-      expect(MparticleWebErrorCodes.identityUnavailable,
-          'MP_WEB_IDENTITY_UNAVAILABLE');
+      expect(
+        MparticleWebErrorCodes.identityUnavailable,
+        'MP_WEB_IDENTITY_UNAVAILABLE',
+      );
     });
   });
 }

@@ -1,0 +1,21 @@
+name: Verify Flutter version floor
+description: Fail when Flutter is outside pubspec bounds (>= 3.44.0 and < 4.0.0).
+
+runs:
+  using: composite
+  steps:
+    - name: Verify Flutter version (>= 3.44.0, < 4.0.0)
+      shell: bash
+      run: |
+        set -euo pipefail
+        FLUTTER_VER=$(flutter --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+        echo "Detected Flutter $FLUTTER_VER"
+        IFS='.' read -r MAJOR MINOR PATCH <<< "$FLUTTER_VER"
+        if [ "$MAJOR" -ge 4 ]; then
+          echo "Flutter $FLUTTER_VER is above supported <4.0.0. Pin vars.FLUTTER_VERSION to 3.x."
+          exit 1
+        fi
+        if [ "$MAJOR" -lt 3 ] || { [ "$MAJOR" -eq 3 ] && [ "$MINOR" -lt 44 ]; }; then
+          echo "Flutter $FLUTTER_VER is below required 3.44.0. Update vars.FLUTTER_VERSION."
+          exit 1
+        fi

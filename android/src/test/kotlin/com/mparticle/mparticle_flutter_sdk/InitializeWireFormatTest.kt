@@ -83,4 +83,13 @@ class InitializeWireFormatTest {
         InitializeOptionsParser.validateBootstrapIdentities(mapOf("7" to "x".repeat(257)))
     assertEquals("bootstrapIdentityRequest value exceeds maximum length.", error)
   }
+
+  @Test
+  fun validateBootstrapIdentities_rejectsDuplicateIntegerKeys() {
+    val error =
+        InitializeOptionsParser.validateBootstrapIdentities(
+            mapOf("1" to "first", "01" to "second"),
+        )
+    assertEquals("bootstrapIdentityRequest contains duplicate identity keys.", error)
+  }
 }

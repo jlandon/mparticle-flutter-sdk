@@ -26,16 +26,8 @@ jobs:
           flutter-version: ${{ vars.FLUTTER_VERSION }}
           channel: stable
           cache: true
-      - name: Verify Flutter version floor (>= 3.44.0)
-        run: |
-          set -euo pipefail
-          FLUTTER_VER=$(flutter --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-          echo "Detected Flutter $FLUTTER_VER"
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$FLUTTER_VER"
-          if [ "$MAJOR" -lt 3 ] || { [ "$MAJOR" -eq 3 ] && [ "$MINOR" -lt 44 ]; }; then
-            echo "Flutter $FLUTTER_VER is below required 3.44.0. Update vars.FLUTTER_VERSION."
-            exit 1
-          fi
+      - name: Verify Flutter version floor
+        uses: ./.github/actions/verify-flutter-floor
       - name: Install example dependencies
         working-directory: example
         run: flutter pub get
@@ -49,6 +41,20 @@ jobs:
       - name: Test
         working-directory: example
         run: flutter test
+      - name: Run iOS platform channel integration test
+        working-directory: example
+        run: |
+          DEVICE_ID=$(xcrun simctl list devices available | grep -m1 'iPhone' | sed -E 's/.* \(([A-F0-9-]+)\).*/\1/')
+          if [ -z "$DEVICE_ID" ]; then
+            echo "No available iPhone simulator found."
+            exit 1
+          fi
+          xcrun simctl boot "$DEVICE_ID" 2>/dev/null || true
+          open -a Simulator
+          flutter test integration_test/ios_platform_channel_test.dart \
+            -d "$DEVICE_ID" \
+            --dart-define=MP_API_KEY=example-key \
+            --dart-define=MP_API_SECRET=example-secret
       - name: Build example iOS app
         working-directory: example
         run: |

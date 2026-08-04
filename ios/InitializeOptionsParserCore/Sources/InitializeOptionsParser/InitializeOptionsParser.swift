@@ -12,10 +12,15 @@ public enum InitializeOptionsParser {
     if identities.count > maxBootstrapIdentities {
       return "bootstrapIdentityRequest exceeds maximum identity count."
     }
+    var parsedKeys = Set<Int>()
     for (key, value) in identities {
-      if Int(key) == nil {
+      guard let intKey = Int(key) else {
         return "bootstrapIdentityRequest contains invalid identity keys."
       }
+      if parsedKeys.contains(intKey) {
+        return "bootstrapIdentityRequest contains duplicate identity keys."
+      }
+      parsedKeys.insert(intKey)
       if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
         return "bootstrapIdentityRequest contains empty values."
       }
