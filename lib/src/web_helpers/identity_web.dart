@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'dart:js_interop';
 
+import 'package:flutter/services.dart';
 import 'package:mparticle_flutter_sdk/src/web_helpers/js_bridge.dart';
 import 'package:mparticle_flutter_sdk/src/web_helpers/web_identity_helpers.dart';
 
@@ -28,65 +29,80 @@ Future<String> invokeIdentityCallback({
     if (completer.isCompleted) {
       return;
     }
-    timer?.cancel();
 
-    if (resultAny.isUndefinedOrNull) {
+    try {
+      if (resultAny.isUndefinedOrNull) {
+        completer.complete(
+          buildIdentityResultJson(
+            httpCode: -1,
+            mpid: null,
+            previousMpid: null,
+            body: 'Identity callback returned no result',
+            errors: null,
+            identityMethod: identityMethod,
+          ),
+        );
+        return;
+      }
+
+      final result = resultAny as JSObject;
+      final httpCode = _readHttpCode(bridge, result);
+      final mpid = _readMpid(bridge, result);
+      final previousMpid = identityMethod == 'modify'
+          ? null
+          : _readPreviousMpid(bridge, result);
+
+      List<Map<String, String?>>? errors;
+      Object? body;
+
+      switch (httpCode) {
+        case 400:
+        case 401:
+        case 429:
+          errors = convertJSErrorArraytoDartErrorList(bridge, result);
+          break;
+        case -1:
+        case -2:
+        case -3:
+        case -4:
+        case -5:
+          body = _readBody(bridge, result);
+          break;
+        default:
+          if (httpCode != null && httpCode >= 500) {
+            final bodyValue = bridge.getProperty(result, 'body');
+            final bodyMap = bridge.jsDartify(bodyValue);
+            if (bodyMap is Map) {
+              body = bodyMap;
+            }
+          }
+      }
+
+      completer.complete(
+        buildIdentityResultJson(
+          httpCode: httpCode,
+          mpid: mpid,
+          previousMpid: previousMpid,
+          body: body,
+          errors: errors,
+          identityMethod: identityMethod,
+          onUnknownHttpCode: (_) {},
+        ),
+      );
+    } catch (_) {
       completer.complete(
         buildIdentityResultJson(
           httpCode: -1,
           mpid: null,
           previousMpid: null,
-          body: 'Identity callback returned no result',
+          body: 'Identity callback result could not be parsed',
           errors: null,
           identityMethod: identityMethod,
         ),
       );
-      return;
+    } finally {
+      timer?.cancel();
     }
-
-    final result = resultAny as JSObject;
-    final httpCode = _readHttpCode(bridge, result);
-    final mpid = _readMpid(bridge, result);
-    final previousMpid =
-        identityMethod == 'modify' ? null : _readPreviousMpid(bridge, result);
-
-    List<Map<String, String?>>? errors;
-    Object? body;
-
-    switch (httpCode) {
-      case 400:
-      case 401:
-      case 429:
-        errors = convertJSErrorArraytoDartErrorList(bridge, result);
-        break;
-      case -1:
-      case -2:
-      case -3:
-      case -4:
-      case -5:
-        body = _readBody(bridge, result);
-        break;
-      default:
-        if (httpCode != null && httpCode >= 500) {
-          final bodyValue = bridge.getProperty(result, 'body');
-          final bodyMap = bridge.jsDartify(bodyValue);
-          if (bodyMap is Map) {
-            body = bodyMap;
-          }
-        }
-    }
-
-    completer.complete(
-      buildIdentityResultJson(
-        httpCode: httpCode,
-        mpid: mpid,
-        previousMpid: previousMpid,
-        body: body,
-        errors: errors,
-        identityMethod: identityMethod,
-        onUnknownHttpCode: (_) {},
-      ),
-    );
   }
 
   void onTimeout() {
@@ -102,14 +118,10 @@ Future<String> invokeIdentityCallback({
 
   timer = Timer(timeout, onTimeout);
 
-  bridge.callMethodVarArgs(
-    identity,
-    identityMethod,
-    [
-      bridge.jsifyValue(identityRequest),
-      callbackRef,
-    ],
-  );
+  bridge.callMethodVarArgs(identity, identityMethod, [
+    bridge.jsifyValue(identityRequest),
+    callbackRef,
+  ]);
 
   return completer.future.whenComplete(() {
     timer?.cancel();
@@ -172,11 +184,11 @@ Map<String, dynamic> createAliasRequest({
   final aliasMaxWindowValue = bridge.getProperty(sdkConfig, 'aliasMaxWindow');
   final aliasMaxWindowDays = _toInt(aliasMaxWindowValue) ?? 0;
 
-  final user = bridge.callMethodVarArgs(
-    identity,
-    'getUser',
-    [bridge.jsifyValue(sourceMpid)!],
-  ) as JSObject;
+  final user =
+      bridge.callMethodVarArgs(identity, 'getUser', [
+            bridge.jsifyValue(sourceMpid)!,
+          ])
+          as JSObject;
 
   final startTime =
       _toInt(bridge.callMethodVarArgs(user, 'getFirstSeenTime', [])) ?? 0;
@@ -213,11 +225,9 @@ Future<void> aliasUsers({
 }) async {
   if (jsAliasRequest['startTime'] != null &&
       jsAliasRequest['endTime'] != null) {
-    bridge.callMethodVarArgs(
-      identity,
-      'aliasUsers',
-      [bridge.jsifyValue(jsAliasRequest)!],
-    );
+    bridge.callMethodVarArgs(identity, 'aliasUsers', [
+      bridge.jsifyValue(jsAliasRequest)!,
+    ]);
     return;
   }
 
@@ -229,13 +239,17 @@ Future<void> aliasUsers({
       mParticle: mParticle,
       identity: identity,
     );
-    bridge.callMethodVarArgs(
-      identity,
-      'aliasUsers',
-      [bridge.jsifyValue(createdAliasRequest)!],
-    );
+    bridge.callMethodVarArgs(identity, 'aliasUsers', [
+      bridge.jsifyValue(createdAliasRequest)!,
+    ]);
     return;
   }
+
+  throw PlatformException(
+    code: MparticleWebErrorCodes.invalidAliasRequest,
+    message:
+        'aliasUsers requires both startTime and endTime, or neither (partial alias window is invalid)',
+  );
 }
 
 int? _readHttpCode(MParticleJsBridge bridge, JSObject result) {

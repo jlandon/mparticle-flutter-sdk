@@ -40,7 +40,6 @@ import kotlin.IllegalArgumentException
 import java.lang.ref.WeakReference
 import java.util.concurrent.atomic.AtomicReference
 
-
 /** MparticleFlutterSdkPlugin */
 class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware {
   /// The MethodChannel that will the communication between Flutter and native Android
@@ -589,19 +588,26 @@ class MparticleFlutterSdkPlugin: FlutterPlugin, MethodCallHandler, ActivityAware
           @Suppress("UNCHECKED_CAST")
           val identityMap = identities as? Map<String, String>
           if (identityMap != null) {
+            val bootstrapError =
+                InitializeOptionsParser.validateBootstrapIdentities(identityMap)
+            if (bootstrapError != null) {
+              result.error("MP_INIT_INVALID_OPTIONS", bootstrapError, null)
+              return
+            }
             val intMap = hashMapOf<Int, String>()
             identityMap.forEach { (key, value) ->
-              key.toIntOrNull()?.let { intMap[it] = value }
+              intMap[key.toInt()] = value
             }
             builder.identify(ConvertIdentityAPIRequest(intMap))
           }
         }
 
         MParticle.start(builder.build())
-        setSdkVersion()
         initializedApiKey.set(apiKey)
+        setSdkVersion()
         result.success(null)
       } catch (e: Exception) {
+        Logger.warning("Failed to initialize mParticle: ${e.message}")
         result.error("MP_INIT_INVALID_OPTIONS", "Failed to initialize mParticle", null)
       }
     }

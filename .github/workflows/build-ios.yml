@@ -3,6 +3,10 @@ name: Build iOS
 on:
   workflow_call:
 
+defaults:
+  run:
+    shell: bash
+
 env:
   PUB_ENVIRONMENT: bot.github
 
@@ -22,6 +26,16 @@ jobs:
           flutter-version: ${{ vars.FLUTTER_VERSION }}
           channel: stable
           cache: true
+      - name: Verify Flutter version floor (>= 3.44.0)
+        run: |
+          set -euo pipefail
+          FLUTTER_VER=$(flutter --version | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          echo "Detected Flutter $FLUTTER_VER"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$FLUTTER_VER"
+          if [ "$MAJOR" -lt 3 ] || { [ "$MAJOR" -eq 3 ] && [ "$MINOR" -lt 44 ]; }; then
+            echo "Flutter $FLUTTER_VER is below required 3.44.0. Update vars.FLUTTER_VERSION."
+            exit 1
+          fi
       - name: Install example dependencies
         working-directory: example
         run: flutter pub get

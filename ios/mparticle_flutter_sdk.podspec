@@ -13,7 +13,7 @@ mParticle Flutter Wrapper
   s.license          = { :file => '../LICENSE' }
   s.author           = { 'Your Company' => 'email@example.com' }
   s.source           = { :path => '.' }
-  s.source_files = 'mparticle_flutter_sdk/Sources/mparticle_flutter_sdk/**/*.{h,m,swift}', 'mparticle_flutter_sdk/Sources/InitializeOptionsParser/**/*.swift'
+  s.source_files = 'mparticle_flutter_sdk/Sources/mparticle_flutter_sdk/**/*.{h,m,swift}', 'InitializeOptionsParserCore/Sources/InitializeOptionsParser/**/*.swift'
   s.public_header_files = 'mparticle_flutter_sdk/Sources/mparticle_flutter_sdk/include/**/*.h'
   s.resource_bundles = {'mparticle_flutter_sdk_privacy' => ['mparticle_flutter_sdk/Sources/mparticle_flutter_sdk/PrivacyInfo.xcprivacy']}
   s.dependency 'Flutter'

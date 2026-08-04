@@ -53,13 +53,34 @@ class InitializeWireFormatTest {
         assertEquals("customBaseUrl must use https://", (result as CustomBaseUrlValidation.Invalid).reason)
     }
 
-    @Test
-    fun validateCustomBaseUrl_rejectsHttpsWithoutHost() {
-        val result = InitializeOptionsParser.validateCustomBaseUrl("https://")
-        assertTrue(result is CustomBaseUrlValidation.Invalid)
-        assertEquals(
-            "customBaseUrl is not a valid https URL",
-            (result as CustomBaseUrlValidation.Invalid).reason,
-        )
-    }
+  @Test
+  fun validateCustomBaseUrl_rejectsHttpsWithoutHost() {
+    val result = InitializeOptionsParser.validateCustomBaseUrl("https://")
+    assertTrue(result is CustomBaseUrlValidation.Invalid)
+    assertEquals(
+      "customBaseUrl is not a valid https URL",
+      (result as CustomBaseUrlValidation.Invalid).reason,
+    )
+  }
+
+  @Test
+  fun validateBootstrapIdentities_rejectsInvalidKeys() {
+    val error =
+        InitializeOptionsParser.validateBootstrapIdentities(mapOf("email" to "a@b.com"))
+    assertEquals("bootstrapIdentityRequest contains invalid identity keys.", error)
+  }
+
+  @Test
+  fun validateBootstrapIdentities_rejectsMoreThanTenIdentities() {
+    val identities = (0 until 11).associate { it.toString() to "value-$it" }
+    val error = InitializeOptionsParser.validateBootstrapIdentities(identities)
+    assertEquals("bootstrapIdentityRequest exceeds maximum identity count.", error)
+  }
+
+  @Test
+  fun validateBootstrapIdentities_rejectsValuesOver256Characters() {
+    val error =
+        InitializeOptionsParser.validateBootstrapIdentities(mapOf("7" to "x".repeat(257)))
+    assertEquals("bootstrapIdentityRequest value exceeds maximum length.", error)
+  }
 }

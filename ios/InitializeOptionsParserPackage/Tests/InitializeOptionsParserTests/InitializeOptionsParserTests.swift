@@ -24,4 +24,23 @@ final class InitializeOptionsParserTests: XCTestCase {
   func testParseEnvironment_unknownIndexDefaultsToAutoDetect() {
     XCTAssertEqual(InitializeOptionsParser.parseEnvironmentRawValue(99), 0)
   }
+
+  func testValidateBootstrapIdentities_rejectsInvalidKeys() {
+    let error = InitializeOptionsParser.validateBootstrapIdentities(["email": "a@b.com"])
+    XCTAssertEqual(error, "bootstrapIdentityRequest contains invalid identity keys.")
+  }
+
+  func testValidateBootstrapIdentities_rejectsMoreThanTenIdentities() {
+    var identities: [String: String] = [:]
+    for index in 0..<11 {
+      identities[String(index)] = "value-\(index)"
+    }
+    let error = InitializeOptionsParser.validateBootstrapIdentities(identities)
+    XCTAssertEqual(error, "bootstrapIdentityRequest exceeds maximum identity count.")
+  }
+
+  func testValidateBootstrapIdentities_rejectsValuesOver256Characters() {
+    let error = InitializeOptionsParser.validateBootstrapIdentities(["7": String(repeating: "x", count: 257)])
+    XCTAssertEqual(error, "bootstrapIdentityRequest value exceeds maximum length.")
+  }
 }

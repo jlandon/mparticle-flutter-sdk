@@ -129,7 +129,7 @@ class MparticleOptions {
         if (!trimmed.toLowerCase().startsWith('https://')) {
           throw MparticleInitException(
             code: MparticleInitErrorCodes.invalidBaseUrl,
-            message: 'customBaseUrl must use the https:// scheme.',
+            message: 'customBaseUrl must use https://',
           );
         }
         final uri = Uri.tryParse(trimmed);
@@ -198,7 +198,8 @@ class MparticleOptions {
       if (logLevel != MparticleLogLevel.warning) 'logLevel': logLevel.index,
       if (environment != MparticleEnvironment.autoDetect)
         'environment': environment.index,
-      if (customBaseUrl != null) 'customBaseUrl': customBaseUrl,
+      if (customBaseUrl != null && customBaseUrl!.trim().isNotEmpty)
+        'customBaseUrl': customBaseUrl!.trim(),
       if (bootstrapIdentities != null)
         'bootstrapIdentityRequest': {'identities': bootstrapIdentities},
       if (ios != null) 'ios': ios!.toJson(),

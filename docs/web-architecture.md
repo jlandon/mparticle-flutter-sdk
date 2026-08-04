@@ -34,26 +34,26 @@ Only `js_runtime.dart` and `mparticle_globals.dart` import `dart:js_interop_unsa
 
 ## MethodChannel wire contract
 
-| Method                                                                              | Return        | Notes                                 |
-| ----------------------------------------------------------------------------------- | ------------- | ------------------------------------- |
-| `isInitialized`                                                                     | `bool`        | `MP_WEB_NOT_READY` on failure         |
-| `getAppName`                                                                        | `String`      | Passthrough                           |
-| `logError`                                                                          | `null`        | Side effect                           |
-| `logEvent`                                                                          | `null`        | Optional `shouldUploadEvent`          |
-| `logScreenEvent`                                                                    | `null`        | Uses `logPageView`                    |
-| `setOptOut`                                                                         | `null`        | Boolean flag                          |
-| `upload`                                                                            | `null`        | Force upload                          |
-| `getMPID`                                                                           | `String`      | Current user                          |
-| `getUserAttributes`                                                                 | `String`      | Raw JSON.stringify                    |
-| `getUserIdentities`                                                                 | `String`      | String-key int map via converters     |
-| `setUserAttribute` / `removeUserAttribute` / `setUserAttributeArray` / `setUserTag` | `null`        | Mutations                             |
-| `identify` / `login` / `logout` / `modify`                                          | JSON `String` | See identity envelope                 |
-| `aliasUsers`                                                                        | `null`        | Partial start/end → no-op             |
-| `logCommerceEvent`                                                                  | `bool?`       | Product/promotion/impression branches |
-| GDPR/CCPA get                                                                       | `String`      | PascalCase → camelCase remapping      |
-| GDPR/CCPA add/remove                                                                | `null`        | Side effects                          |
-| `roktSelectPlacements`                                                              | `null`        | Rokt side effect                      |
-| Unsupported                                                                         | —             | `PlatformException` `Unimplemented`   |
+| Method                                                                              | Return        | Notes                                              |
+| ----------------------------------------------------------------------------------- | ------------- | -------------------------------------------------- |
+| `isInitialized`                                                                     | `bool`        | `MP_WEB_NOT_READY` on failure                      |
+| `getAppName`                                                                        | `String`      | Passthrough                                        |
+| `logError`                                                                          | `null`        | Side effect                                        |
+| `logEvent`                                                                          | `null`        | Optional `shouldUploadEvent`                       |
+| `logScreenEvent`                                                                    | `null`        | Uses `logPageView`                                 |
+| `setOptOut`                                                                         | `null`        | Boolean flag                                       |
+| `upload`                                                                            | `null`        | Force upload                                       |
+| `getMPID`                                                                           | `String`      | Current user                                       |
+| `getUserAttributes`                                                                 | `String`      | Raw JSON.stringify                                 |
+| `getUserIdentities`                                                                 | `String`      | String-key int map via converters                  |
+| `setUserAttribute` / `removeUserAttribute` / `setUserAttributeArray` / `setUserTag` | `null`        | Mutations                                          |
+| `identify` / `login` / `logout` / `modify`                                          | JSON `String` | See identity envelope                              |
+| `aliasUsers`                                                                        | `null`        | Partial start/end → `MP_WEB_INVALID_ALIAS_REQUEST` |
+| `logCommerceEvent`                                                                  | `bool?`       | Product/promotion/impression branches              |
+| GDPR/CCPA get                                                                       | `String`      | PascalCase → camelCase remapping                   |
+| GDPR/CCPA add/remove                                                                | `null`        | Side effects                                       |
+| `roktSelectPlacements`                                                              | `null`        | Rokt side effect                                   |
+| Unsupported                                                                         | —             | `PlatformException` `Unimplemented`                |
 
 ### Identity envelope JSON
 

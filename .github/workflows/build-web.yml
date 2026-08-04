@@ -44,6 +44,8 @@ jobs:
         run: flutter pub get
       - name: Test plugin (unit)
         run: flutter test
+      - name: Test plugin identity callback (browser)
+        run: flutter test --platform chrome test/identity_web_callback_test.dart
       - name: Test example
         working-directory: example
         run: flutter test
@@ -68,7 +70,7 @@ jobs:
           test -f build/web/flutter_bootstrap.js || test -f build/web/flutter.js
       - name: Upload web build artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@6.0.0
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: web-build-debug
           path: example/build/web/

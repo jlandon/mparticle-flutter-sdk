@@ -1,6 +1,8 @@
 import Flutter
 import UIKit
+#if canImport(InitializeOptionsParser)
 import InitializeOptionsParser
+#endif
 import mParticle_Apple_SDK
 import RoktContracts
 import RoktPaymentExtension
@@ -14,6 +16,7 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
   private static let initLock = NSLock()
   private static var initializedApiKey: String?
   private static var sdkStarted = false
+
   let roktLayoutFactory: RoktLayoutFactory
   let channel: FlutterMethodChannel
   let registrar: FlutterPluginRegistrar
@@ -657,7 +660,7 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
 
     if let customBaseUrl = args["customBaseUrl"] as? String {
       let trimmed = customBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
-      if !trimmed.lowercased().hasPrefix("https://") {
+      if !trimmed.isEmpty && !trimmed.lowercased().hasPrefix("https://") {
         result(FlutterError(code: "MP_INIT_INVALID_BASE_URL", message: "customBaseUrl must use https://", details: nil))
         return
       }
@@ -701,7 +704,7 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
       }
       let message: String
       if SwiftMparticleFlutterSdkPlugin.initializedApiKey == nil {
-        message = "mParticle already initialized natively; remove AppDelegate start before Dart initialize()"
+        message = "mParticle already initialized natively; remove Application/AppDelegate start before Dart initialize()"
       } else {
         message = "mParticle already initialized"
       }
@@ -727,17 +730,23 @@ public class SwiftMparticleFlutterSdkPlugin: NSObject, FlutterPlugin {
 
     if let customBaseUrl = args["customBaseUrl"] as? String {
       let trimmed = customBaseUrl.trimmingCharacters(in: .whitespacesAndNewlines)
-      guard let url = URL(string: trimmed), url.host != nil else {
-        result(FlutterError(code: "MP_INIT_INVALID_BASE_URL", message: "customBaseUrl is not a valid https URL", details: nil))
-        return
+      if !trimmed.isEmpty {
+        guard let url = URL(string: trimmed), url.host != nil else {
+          result(FlutterError(code: "MP_INIT_INVALID_BASE_URL", message: "customBaseUrl is not a valid https URL", details: nil))
+          return
+        }
+        let networkOptions = MPNetworkOptions()
+        networkOptions.customBaseURL = url
+        options.networkOptions = networkOptions
       }
-      let networkOptions = MPNetworkOptions()
-      networkOptions.customBaseURL = url
-      options.networkOptions = networkOptions
     }
 
     if let bootstrap = args["bootstrapIdentityRequest"] as? [String: Any],
        let identities = bootstrap["identities"] as? [String: String] {
+      if let bootstrapError = InitializeOptionsParser.validateBootstrapIdentities(identities) {
+        result(FlutterError(code: "MP_INIT_INVALID_OPTIONS", message: bootstrapError, details: nil))
+        return
+      }
       var identityMap: [NSNumber: String] = [:]
       for (key, value) in identities {
         if let intKey = Int(key) {

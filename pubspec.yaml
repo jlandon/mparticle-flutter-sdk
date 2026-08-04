@@ -6,7 +6,7 @@ repository: https://github.com/mParticle/mparticle-flutter-sdk
 license: Apache-2.0
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: ">=3.10.0 <4.0.0"
   flutter: ">=3.44.0"
 
 dependencies:
@@ -16,6 +16,7 @@ dependencies:
     sdk: flutter
 
 dev_dependencies:
+  fake_async: ^1.3.3
   flutter_test:
     sdk: flutter
 

@@ -377,6 +377,28 @@ void main() {
         )),
       );
     });
+
+    test('web identity callback timeout maps to ClientSideTimeout', () async {
+      final channel = MethodChannel('test_timeout');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        channel,
+        (_) async => buildIdentityTimeoutJson(),
+      );
+
+      await expectLater(
+        mobile_identity.sendIdentityRequest(
+          {IdentityType.Email: 'test@example.com'},
+          channel,
+          'identify',
+        ),
+        throwsA(isA<IdentityAPIErrorResponse>().having(
+          (e) => e.clientErrorCode,
+          'clientErrorCode',
+          IdentityClientErrorCodes.ClientSideTimeout,
+        )),
+      );
+    });
   });
 
   group('convertDartErrorList', () {

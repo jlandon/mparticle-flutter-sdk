@@ -1,6 +1,6 @@
 // swift-tools-version: 6.0
 //
-// Thin test package for InitializeOptionsParser unit tests (depends on main plugin package).
+// Unit tests for InitializeOptionsParser (sources in InitializeOptionsParserCore).
 import PackageDescription
 
 let package = Package(
@@ -10,13 +10,13 @@ let package = Package(
         .macOS(.v12),
     ],
     dependencies: [
-        .package(name: "mparticle_flutter_sdk", path: "../mparticle_flutter_sdk"),
+        .package(path: "../InitializeOptionsParserCore"),
     ],
     targets: [
         .testTarget(
             name: "InitializeOptionsParserTests",
             dependencies: [
-                .product(name: "InitializeOptionsParser", package: "mparticle_flutter_sdk"),
+                .product(name: "InitializeOptionsParser", package: "InitializeOptionsParserCore"),
             ],
             path: "Tests/InitializeOptionsParserTests"
         ),

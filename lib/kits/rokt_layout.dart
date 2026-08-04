@@ -19,11 +19,11 @@ class RoktLayout extends StatefulWidget {
   final LayoutCreatedCallback onLayoutCreated;
 
   /// Initializes [key] for subclasses, [placeholderName] is the location name
-  const RoktLayout(
-      {Key? key,
-      required this.placeholderName,
-      this.onLayoutCreated = _defaultLayoutCreatedCallback})
-      : super(key: key);
+  const RoktLayout({
+    Key? key,
+    required this.placeholderName,
+    this.onLayoutCreated = _defaultLayoutCreatedCallback,
+  }) : super(key: key);
 
   static void _defaultLayoutCreatedCallback() {}
 
@@ -61,12 +61,18 @@ class _RoktContainerState extends State<RoktLayout>
   }
 
   void _changeHeight(double newHeight) {
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _height = newHeight;
     });
   }
 
   void _changePadding(BoundingBox box) {
+    if (!mounted) {
+      return;
+    }
     setState(() {
       _left = box.left;
       _top = box.top;
@@ -79,35 +85,51 @@ class _RoktContainerState extends State<RoktLayout>
   Widget build(BuildContext context) {
     super.build(context);
     return AnimatedOpacity(
-        opacity: (_height > 1) ? 1.0 : 0.1,
-        duration: Duration(milliseconds: 200),
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(_left, _top, _right, _bottom),
-          child: SizedBox(
-              height: _height,
-              child: _RoktStatelessWidget(
-                  platformViewCreatedCallback: _onPlatformViewCreated)),
-        ));
+      opacity: (_height > 1) ? 1.0 : 0.1,
+      duration: Duration(milliseconds: 200),
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(_left, _top, _right, _bottom),
+        child: SizedBox(
+          height: _height,
+          child: _RoktStatelessWidget(
+            platformViewCreatedCallback: _onPlatformViewCreated,
+          ),
+        ),
+      ),
+    );
   }
 
   void _onPlatformViewCreated(int id) {
-    MparticleFlutterSdk.instance
-        .attachPlaceholder(id: id, name: widget.placeholderName);
-
     _layoutController = LayoutController(
-        id: id,
-        sizeChangeCallback: _changeHeight,
-        paddingChangeCallback: _changePadding);
+      id: id,
+      sizeChangeCallback: _changeHeight,
+      paddingChangeCallback: _changePadding,
+    );
     widget.onLayoutCreated();
+
+    try {
+      MparticleFlutterSdk.instance.attachPlaceholder(
+        id: id,
+        name: widget.placeholderName,
+      );
+    } on StateError {
+      MparticleFlutterSdk.getInstance().then((value) {
+        if (!mounted) {
+          return;
+        }
+        value?.attachPlaceholder(id: id, name: widget.placeholderName);
+      });
+    }
   }
 }
 
 class _RoktStatelessWidget extends StatelessWidget {
   final RoktPlatformViewCreatedCallback platformViewCreatedCallback;
 
-  const _RoktStatelessWidget(
-      {Key? key, required this.platformViewCreatedCallback})
-      : super(key: key);
+  const _RoktStatelessWidget({
+    Key? key,
+    required this.platformViewCreatedCallback,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -118,32 +140,27 @@ class _RoktStatelessWidget extends StatelessWidget {
     if (defaultTargetPlatform == TargetPlatform.android) {
       return PlatformViewLink(
         viewType: viewType,
-        surfaceFactory: (
-          BuildContext context,
-          PlatformViewController controller,
-        ) {
-          return AndroidViewSurface(
-            controller: controller as AndroidViewController,
-            gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
-            hitTestBehavior: PlatformViewHitTestBehavior.opaque,
-          );
-        },
+        surfaceFactory:
+            (BuildContext context, PlatformViewController controller) {
+              return AndroidViewSurface(
+                controller: controller as AndroidViewController,
+                gestureRecognizers:
+                    const <Factory<OneSequenceGestureRecognizer>>{},
+                hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+              );
+            },
         onCreatePlatformView: (PlatformViewCreationParams params) {
           final SurfaceAndroidViewController controller =
               PlatformViewsService.initSurfaceAndroidView(
-            id: params.id,
-            viewType: viewType,
-            layoutDirection: TextDirection.ltr,
-            creationParams: creationParams,
-            creationParamsCodec: const StandardMessageCodec(),
-            onFocus: () => params.onFocusChanged(true),
-          )
-                ..addOnPlatformViewCreatedListener(
-                  params.onPlatformViewCreated,
+                  id: params.id,
+                  viewType: viewType,
+                  layoutDirection: TextDirection.ltr,
+                  creationParams: creationParams,
+                  creationParamsCodec: const StandardMessageCodec(),
+                  onFocus: () => params.onFocusChanged(true),
                 )
-                ..addOnPlatformViewCreatedListener(
-                  platformViewCreatedCallback,
-                )
+                ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
+                ..addOnPlatformViewCreatedListener(platformViewCreatedCallback)
                 ..create();
           return controller;
         },

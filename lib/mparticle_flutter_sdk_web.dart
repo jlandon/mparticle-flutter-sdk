@@ -51,6 +51,17 @@ class MparticleFlutterSdkWeb {
       case 'isInitialized':
         try {
           return analytics_web.isInitialized(bridge: _bridge);
+        } on PlatformException catch (error) {
+          if (error.code == MparticleWebErrorCodes.snippetMissing) {
+            rethrow;
+          }
+          throw PlatformException(
+            code: MparticleWebErrorCodes.notReady,
+            message:
+                'Unable to get mParticle initialization status. Double-check '
+                'your web API key and snippet configuration.',
+            details: error.details ?? error.message,
+          );
         } catch (error) {
           throw PlatformException(
             code: MparticleWebErrorCodes.notReady,

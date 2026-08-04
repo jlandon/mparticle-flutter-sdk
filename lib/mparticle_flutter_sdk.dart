@@ -18,6 +18,7 @@ import 'package:mparticle_flutter_sdk/kits/widget_controller.dart';
 import 'package:mparticle_flutter_sdk/src/commerce/commerce_helpers.dart';
 import 'package:mparticle_flutter_sdk/src/identity/identity_helpers.dart';
 import 'package:mparticle_flutter_sdk/src/mparticle_init.dart';
+import 'package:mparticle_flutter_sdk/src/mparticle_web_error_codes.dart';
 import 'package:mparticle_flutter_sdk/src/user.dart';
 
 import 'events/mp_event.dart';
@@ -98,15 +99,17 @@ class MparticleFlutterSdk {
     final initFuture = completer.future;
 
     try {
-      await _channel.invokeMethod<void>('initialize', options.toJson()).timeout(
-        options.initTimeout,
-        onTimeout: () {
-          throw MparticleInitException(
-            code: MparticleInitErrorCodes.timeout,
-            message: 'mParticle initialization timed out.',
+      await _channel
+          .invokeMethod<void>('initialize', options.toJson())
+          .timeout(
+            options.initTimeout,
+            onTimeout: () {
+              throw MparticleInitException(
+                code: MparticleInitErrorCodes.timeout,
+                message: 'mParticle initialization timed out.',
+              );
+            },
           );
-        },
-      );
       final sdk = MparticleFlutterSdk._();
       _instance = sdk;
       _initialized = true;
@@ -154,11 +157,17 @@ class MparticleFlutterSdk {
 
     final deadline = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(deadline)) {
-      final ready = await _channel.invokeMethod<bool>('isInitialized');
-      if (ready == true) {
-        _instance ??= MparticleFlutterSdk._();
-        _initialized = true;
-        return _instance!;
+      try {
+        final ready = await _channel.invokeMethod<bool>('isInitialized');
+        if (ready == true) {
+          _instance ??= MparticleFlutterSdk._();
+          _initialized = true;
+          return _instance!;
+        }
+      } on PlatformException catch (e) {
+        if (e.code != MparticleWebErrorCodes.notReady) {
+          rethrow;
+        }
       }
       await Future<void>.delayed(const Duration(milliseconds: 50));
     }
@@ -195,8 +204,9 @@ class MparticleFlutterSdk {
     }
   }
 
-  static const MethodChannel _channel =
-      const MethodChannel('mparticle_flutter_sdk');
+  static const MethodChannel _channel = const MethodChannel(
+    'mparticle_flutter_sdk',
+  );
 
   /// The identity request object required to pass into Identity calls.
   static IdentityRequest identityRequest = new IdentityRequest();
@@ -222,9 +232,7 @@ class MparticleFlutterSdk {
   }
 
   /// Returns if a kit is active given a [kitId].
-  Future<bool> isKitActive({
-    required int kit,
-  }) async {
+  Future<bool> isKitActive({required int kit}) async {
     return await _channel.invokeMethod('isKitActive', {'kitId': kit});
   }
 
@@ -257,28 +265,30 @@ class MparticleFlutterSdk {
       'nonInteractive': commerceEvent.nonInteractive,
       'shouldUploadEvent': commerceEvent.shouldUploadEvent,
       'customAttributes': commerceEvent.customAttributes,
-      'customFlags': commerceEvent.customFlags
+      'customFlags': commerceEvent.customFlags,
     };
     ProductActionType? productActionType = commerceEvent.productActionType;
     PromotionActionType? promotionActionType =
         commerceEvent.promotionActionType;
     if (productActionType != null) {
-      commerceEventMessage['productActionType'] =
-          ProductActionType.values.indexOf(productActionType);
+      commerceEventMessage['productActionType'] = ProductActionType.values
+          .indexOf(productActionType);
       commerceEventMessage['androidProductActionType'] =
           getAndroidSDKProductActionTypeString(productActionType);
-      commerceEventMessage['jsProductActionType'] =
-          getWebSDKProductActionType(productActionType);
+      commerceEventMessage['jsProductActionType'] = getWebSDKProductActionType(
+        productActionType,
+      );
     } else if (promotionActionType != null) {
-      commerceEventMessage['promotionActionType'] =
-          PromotionActionType.values.indexOf(promotionActionType);
+      commerceEventMessage['promotionActionType'] = PromotionActionType.values
+          .indexOf(promotionActionType);
       commerceEventMessage['androidPromotionActionType'] =
           getAndroidSDKPromotionActionTypeString(promotionActionType);
       commerceEventMessage['jsPromotionActionType'] =
           getWebSDKPromotionActionType(promotionActionType);
     }
-    return await _channel.invokeMethod(
-        'logCommerceEvent', {"commerceEvent": commerceEventMessage});
+    return await _channel.invokeMethod('logCommerceEvent', {
+      "commerceEvent": commerceEventMessage,
+    });
   }
 
   /// Logs an error event with an [eventName] and [customAttributes].
@@ -299,7 +309,7 @@ class MparticleFlutterSdk {
       'eventType': EventType.values.indexOf(event.eventType as EventType),
       'customAttributes': event.customAttributes,
       'customFlags': event.customFlags,
-      'shouldUploadEvent': event.shouldUploadEvent
+      'shouldUploadEvent': event.shouldUploadEvent,
     });
   }
 
@@ -311,8 +321,10 @@ class MparticleFlutterSdk {
     required String pushToken,
     String? senderId,
   }) async {
-    return await _channel.invokeMethod(
-        'logPushRegistration', {'pushToken': pushToken, 'senderId': senderId});
+    return await _channel.invokeMethod('logPushRegistration', {
+      'pushToken': pushToken,
+      'senderId': senderId,
+    });
   }
 
   /// Logs a screen event (in web parlance, a 'page view') with an [eventName], [customAttributes], and [customFlags]
@@ -320,7 +332,7 @@ class MparticleFlutterSdk {
     return await _channel.invokeMethod('logScreenEvent', {
       'eventName': screenEvent.eventName,
       'customAttributes': screenEvent.customAttributes,
-      'customFlags': screenEvent.customFlags
+      'customFlags': screenEvent.customFlags,
     });
   }
 
@@ -336,11 +348,10 @@ class MparticleFlutterSdk {
   }
 
   /// Sets the opt out status with an [optOutBoolean]
-  Future<void> setOptOut(
-    bool optOutBoolean,
-  ) async {
-    return await _channel
-        .invokeMethod('setOptOut', {'optOutBoolean': optOutBoolean});
+  Future<void> setOptOut(bool optOutBoolean) async {
+    return await _channel.invokeMethod('setOptOut', {
+      'optOutBoolean': optOutBoolean,
+    });
   }
 
   /// Forces a manual upload of the batch.
@@ -372,8 +383,10 @@ class MparticleFlutterSdk {
 class IdentityRequest {
   Map<IdentityType, String> identities = new Map();
 
-  IdentityRequest setIdentity(
-      {required IdentityType identityType, required String value}) {
+  IdentityRequest setIdentity({
+    required IdentityType identityType,
+    required String value,
+  }) {
     this.identities[identityType] = value;
     return this;
   }
@@ -394,37 +407,42 @@ class IdentityRequest {
 class Identity {
   Identity._();
 
-  static const MethodChannel _channel =
-      const MethodChannel('mparticle_flutter_sdk');
+  static const MethodChannel _channel = const MethodChannel(
+    'mparticle_flutter_sdk',
+  );
 
-  Future<IdentityApiResult> identify({
-    IdentityRequest? identityRequest,
-  }) async {
+  Future<IdentityApiResult> identify({IdentityRequest? identityRequest}) async {
     return await sendIdentityRequest(
-        (identityRequest ?? IdentityRequest()).identities,
-        _channel,
-        'identify');
+      (identityRequest ?? IdentityRequest()).identities,
+      _channel,
+      'identify',
+    );
   }
 
-  Future<IdentityApiResult> login({
-    IdentityRequest? identityRequest,
-  }) async {
+  Future<IdentityApiResult> login({IdentityRequest? identityRequest}) async {
     return await sendIdentityRequest(
-        (identityRequest ?? IdentityRequest()).identities, _channel, 'login');
+      (identityRequest ?? IdentityRequest()).identities,
+      _channel,
+      'login',
+    );
   }
 
-  Future<IdentityApiResult> logout({
-    IdentityRequest? identityRequest,
-  }) async {
+  Future<IdentityApiResult> logout({IdentityRequest? identityRequest}) async {
     return await sendIdentityRequest(
-        (identityRequest ?? IdentityRequest()).identities, _channel, 'logout');
+      (identityRequest ?? IdentityRequest()).identities,
+      _channel,
+      'logout',
+    );
   }
 
   Future<IdentityApiResult> modify({
     required IdentityRequest identityRequest,
   }) async {
     return await sendIdentityRequest(
-        identityRequest.identities, _channel, 'modify');
+      identityRequest.identities,
+      _channel,
+      'modify',
+    );
   }
 
   /// Transitions anonymous user to known user inside an `aliasRequest`
@@ -435,11 +453,12 @@ class Identity {
       "sourceMpid": aliasRequest.sourceMpid,
       "destinationMpid": aliasRequest.destinationMpid,
       "startTime": aliasRequest.startTime,
-      "endTime": aliasRequest.endTime
+      "endTime": aliasRequest.endTime,
     };
 
-    return await _channel
-        .invokeMethod('aliasUsers', {'aliasRequest': aliasRequestObj});
+    return await _channel.invokeMethod('aliasUsers', {
+      'aliasRequest': aliasRequestObj,
+    });
   }
 }
 
@@ -447,8 +466,9 @@ class Identity {
 class Rokt {
   Rokt._();
 
-  static const MethodChannel _channel =
-      const MethodChannel('mparticle_flutter_sdk');
+  static const MethodChannel _channel = const MethodChannel(
+    'mparticle_flutter_sdk',
+  );
   static const EventChannel _eventChannel = EventChannel('MPRoktEvents');
   static final Map<String, StreamSubscription<dynamic>> _eventSubscriptions =
       {};
@@ -459,14 +479,16 @@ class Rokt {
   /// [PlatformException] (for example when Android `MainActivity` is not a
   /// [FlutterFragmentActivity]).
   Future<void> events(
-      String identifier, void Function(dynamic event) onEvent) async {
+    String identifier,
+    void Function(dynamic event) onEvent,
+  ) async {
     _eventSubscriptions[identifier]?.cancel();
-    await _channel.invokeMethod<void>(
-      'roktSubscribeToEvents',
-      {'identifier': identifier},
-    );
-    _eventSubscriptions[identifier] =
-        _eventChannel.receiveBroadcastStream().listen(onEvent);
+    await _channel.invokeMethod<void>('roktSubscribeToEvents', {
+      'identifier': identifier,
+    });
+    _eventSubscriptions[identifier] = _eventChannel
+        .receiveBroadcastStream()
+        .listen(onEvent);
   }
 
   /// Cancels the Rokt event subscription for [identifier].
@@ -548,9 +570,9 @@ class Rokt {
           ? {
               'cacheDurationInSeconds':
                   config.cacheConfig?.cacheDurationInSeconds,
-              'cacheAttributes': config.cacheConfig?.cacheAttributes
+              'cacheAttributes': config.cacheConfig?.cacheAttributes,
             }
-          : null
+          : null,
     };
   }
 }
@@ -573,8 +595,10 @@ class CacheConfig {
   /// - Parameters
   ///  - [int] cacheDurationInSeconds: duration in seconds for which the Rokt SDK should cache the experience. Default is 90 minutes
   ///  - [Map<String, String>]? cacheAttributes: optional attributes to be used as cache key. If null, all the attributes will be used as the cache key
-  const CacheConfig(
-      {this.cacheDurationInSeconds = 0, this.cacheAttributes = null});
+  const CacheConfig({
+    this.cacheDurationInSeconds = 0,
+    this.cacheAttributes = null,
+  });
 }
 
 /// Configuration settings for the Rokt SDK <br>
@@ -595,8 +619,10 @@ class RoktConfig {
   /// - Parameters
   ///   - [ColorMode]? colorMode: preferred device color mode configuration
   ///   - [CacheConfig]? cacheConfig: cache configuration for the Rokt SDK
-  const RoktConfig(
-      {this.colorMode = ColorMode.system, this.cacheConfig = null});
+  const RoktConfig({
+    this.colorMode = ColorMode.system,
+    this.cacheConfig = null,
+  });
 }
 
 /// Enum representing device color modes
@@ -608,5 +634,5 @@ enum ColorMode {
   dark,
 
   /// Request System's current configuration
-  system
+  system,
 }

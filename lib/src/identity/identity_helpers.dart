@@ -35,7 +35,16 @@ sendIdentityRequest(Map<IdentityType, String> identitiesByEnum,
       switch (httpCode) {
         case -1: // web and android both have a -1 client side error code
           if (platform == 'web') {
-            clientErrorCode = IdentityClientErrorCodes.ClientNoConnection;
+            final errors = response['errors'] as List?;
+            final firstMessage =
+                errors != null && errors.isNotEmpty && errors.first is Map
+                    ? errors.first['message']?.toString()
+                    : null;
+            final isTimeout = firstMessage != null &&
+                firstMessage.toLowerCase().contains('timed out');
+            clientErrorCode = isTimeout
+                ? IdentityClientErrorCodes.ClientSideTimeout
+                : IdentityClientErrorCodes.ClientNoConnection;
           } else if (platform == 'android') {
             clientErrorCode = IdentityClientErrorCodes.Unknown;
           }

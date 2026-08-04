@@ -80,7 +80,7 @@ class _MyAppState extends State<MyApp> {
               'MP_API_SECRET',
               defaultValue: 'example-secret',
             ),
-            logLevel: MparticleLogLevel.verbose,
+            logLevel: MparticleLogLevel.warning,
           ),
         );
       }
@@ -96,19 +96,26 @@ class _MyAppState extends State<MyApp> {
   }
 
   void identityCallbackSuccess(IdentityApiResult successResponse) {
-    print("Success Response: $successResponse");
+    if (kDebugMode) {
+      debugPrint('Identity success (httpCode only in release-safe logging)');
+    }
   }
 
   void identityCallbackFailure(error) {
     var failureResponse = error as IdentityAPIErrorResponse;
-    print("Failure Response: $failureResponse");
-    if (failureResponse.clientErrorCode != null) {
-      switch (failureResponse.clientErrorCode) {
-        case IdentityClientErrorCodes.RequestInProgress:
-        default:
-          print(failureResponse.clientErrorCode);
-          failureResponse.errors
-              .forEach((error) => print('${error.code}\n${error.message}'));
+    if (kDebugMode) {
+      debugPrint(
+        'Identity failure: httpCode=${failureResponse.httpCode}, '
+        'clientErrorCode=${failureResponse.clientErrorCode}',
+      );
+      if (failureResponse.clientErrorCode != null) {
+        switch (failureResponse.clientErrorCode) {
+          case IdentityClientErrorCodes.RequestInProgress:
+          default:
+            failureResponse.errors.forEach(
+              (err) => debugPrint('code=${err.code} message=${err.message}'),
+            );
+        }
       }
     }
     int? httpCode = failureResponse.httpCode;

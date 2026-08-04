@@ -19,10 +19,11 @@ JSObject createJSProduct({
   }).toList();
 
   return bridge.callMethodVarArgs(
-    commerce,
-    'createProduct',
-    args.cast<JSAny?>(),
-  )! as JSObject;
+        commerce,
+        'createProduct',
+        args.cast<JSAny?>(),
+      )!
+      as JSObject;
 }
 
 bool? logCommerceEvent({
@@ -37,7 +38,7 @@ bool? logCommerceEvent({
   var transactionAttributes =
       commerceEvent['transactionAttributes'] as Map<dynamic, dynamic>? ?? {};
 
-  final checkoutStep = commerceEvent['checkoutStep'] as String?;
+  final checkoutStep = commerceEvent['checkoutStep'] as int?;
   if (checkoutStep != null) {
     transactionAttributes = Map<dynamic, dynamic>.from(transactionAttributes)
       ..['Step'] = checkoutStep;
@@ -99,11 +100,12 @@ bool? logCommerceEvent({
         final promotion = rawPromotion as Map<dynamic, dynamic>;
         promotions.add(
           bridge.callMethodVarArgs(commerce, 'createPromotion', [
-            bridge.jsifyValue(promotion['promotionId']),
-            bridge.jsifyValue(promotion['creative']),
-            bridge.jsifyValue(promotion['name']),
-            bridge.jsifyValue(promotion['position']),
-          ])! as JSObject,
+                bridge.jsifyValue(promotion['promotionId']),
+                bridge.jsifyValue(promotion['creative']),
+                bridge.jsifyValue(promotion['name']),
+                bridge.jsifyValue(promotion['position']),
+              ])!
+              as JSObject,
         );
       }
     }
@@ -139,9 +141,10 @@ bool? logCommerceEvent({
 
       impressions.add(
         bridge.callMethodVarArgs(commerce, 'createImpression', [
-          bridge.jsifyValue(impression['impressionListName']),
-          _jsObjectList(impressionProducts),
-        ])! as JSObject,
+              bridge.jsifyValue(impression['impressionListName']),
+              _jsObjectList(impressionProducts),
+            ])!
+            as JSObject,
       );
     }
   }

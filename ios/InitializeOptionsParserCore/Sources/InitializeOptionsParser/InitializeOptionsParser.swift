@@ -1,7 +1,31 @@
 /// Maps Dart [MparticleOptions] wire indices to mParticle Apple SDK raw values.
 ///
 /// Kept UIKit-free so unit tests run on macOS without linking mParticle-Apple-SDK.
+import Foundation
+
 public enum InitializeOptionsParser {
+  private static let maxBootstrapIdentities = 10
+  private static let maxIdentityValueLength = 256
+
+  /// Returns an error message when bootstrap identities violate Dart wire limits.
+  public static func validateBootstrapIdentities(_ identities: [String: String]) -> String? {
+    if identities.count > maxBootstrapIdentities {
+      return "bootstrapIdentityRequest exceeds maximum identity count."
+    }
+    for (key, value) in identities {
+      if Int(key) == nil {
+        return "bootstrapIdentityRequest contains invalid identity keys."
+      }
+      if value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        return "bootstrapIdentityRequest contains empty values."
+      }
+      if value.count > maxIdentityValueLength {
+        return "bootstrapIdentityRequest value exceeds maximum length."
+      }
+    }
+    return nil
+  }
+
   /// Maps Dart log level index (0–5) to `MPILogLevel` raw value.
   ///
   /// Apple SDK has no INFO level; Dart index 3 (info) maps to Debug (3).
